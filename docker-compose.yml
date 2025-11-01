@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  # Spring Boot Backend Application
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: backend:latest
+    container_name: spring-backend
+    ports:
+      - "8080:8080"
+    environment:
+      # Spring Profile
+      - SPRING_PROFILES_ACTIVE=docker
+      
+      # Spring Security Configuration
+      - SPRING_SECURITY_USER_NAME=${SPRING_SECURITY_USER_NAME:-admin}
+      - SPRING_SECURITY_USER_PASSWORD=${SPRING_SECURITY_USER_PASSWORD:-admin123}
+      
+      # Database Configuration (SQL Server)
+      - SPRING_DATASOURCE_URL=jdbc:sqlserver://sqlserver:1433;databaseName=appdb;encrypt=true;trustServerCertificate=true
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-sa}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-YourStrong@Passw0rd}
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.microsoft.sqlserver.jdbc.SQLServerDriver
+      
+      # JPA/Hibernate Configuration
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_SHOW_SQL=false
+      - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.SQLServerDialect
+      
+      # MyBatis Configuration
+      - MYBATIS_MAPPER_LOCATIONS=classpath:mapper/**/*.xml
+      - MYBATIS_TYPE_ALIASES_PACKAGE=x.y.z.backend
+      
+      # Logging
+      - LOGGING_LEVEL_ROOT=INFO
+      - LOGGING_LEVEL_X_Y_Z_BACKEND=DEBUG
+      
+      # JVM Options
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    networks:
+      - backend-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # SQL Server Database
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=${DB_PASSWORD:-YourStrong@Passw0rd}
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - backend-network
+    restart: unless-stopped
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$${SA_PASSWORD}" -C -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+networks:
+  backend-network:
+    driver: bridge
+
+volumes:
+  sqlserver-data:
+    driver: local
