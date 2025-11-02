@@ -1,0 +1,156 @@
+name: Backend - Build and Push Image (Digest)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Dockerfile'
+      - 'Dockerfile.buildkit'
+      - 'pom.xml'
+      - 'src/**'
+      - 'mvnw'
+      - 'mvnw.cmd'
+      - '.mvn/**'
+
+env:
+  AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
+  AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
+  IMAGE_REPO: raptor/backend-${{ vars.AZURE_ENV_NAME }}
+  # Default to dispatching into the same repository unless overridden via repo variables
+  INFRA_REPO: ${{ vars.INFRA_REPO || github.repository }}
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 45
+    concurrency:
+      group: backend-${{ github.ref }}
+      cancel-in-progress: true
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Extract Maven project version
+        id: meta
+        run: |
+          set -euo pipefail
+          
+          # Extract version from pom.xml
+          if [ -f "pom.xml" ]; then
+            APP_VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
+            echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
+            echo "Using application version: $APP_VERSION"
+          else
+            echo "app_version=unknown" >> $GITHUB_OUTPUT
+            echo "Warning: No pom.xml found"
+          fi
+          
+          echo "tag=${GITHUB_SHA::12}" >> $GITHUB_OUTPUT
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR Login
+        run: |
+          set -euo pipefail
+          az acr login -n "$AZURE_ACR_NAME"
+
+      - name: Docker Buildx setup
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image (tag) with cache
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.AZURE_ACR_NAME }}.azurecr.io/${{ env.IMAGE_REPO }}:${{ steps.meta.outputs.tag }}
+          build-args: |
+            APP_VERSION=${{ steps.meta.outputs.app_version }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.repository }}
+            org.opencontainers.image.ref.name=${{ github.ref_name }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.app_version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
+
+      - name: Compose image by digest
+        id: digest
+        run: |
+          set -euo pipefail
+          REGISTRY="${AZURE_ACR_NAME}.azurecr.io"
+          REPO="${IMAGE_REPO}"
+          DIGEST="${{ steps.build.outputs.digest }}"
+          if [ -z "$DIGEST" ]; then echo "Build action did not return a digest"; exit 1; fi
+          IMAGE_BY_DIGEST="$REGISTRY/$REPO@$DIGEST"
+          echo "image=$IMAGE_BY_DIGEST" >> $GITHUB_OUTPUT
+          echo "Built and pushed: $IMAGE_BY_DIGEST"
+
+      - name: Verify dispatch token for cross-repo
+        if: env.INFRA_REPO != github.repository
+        run: |
+          set -euo pipefail
+          if [ -z "${{ secrets.GH_PAT_REPO_DISPATCH }}" ]; then
+            echo "Missing secret GH_PAT_REPO_DISPATCH. Create a PAT with repo access to ${{ env.INFRA_REPO }} and add it to environment 'dev' secrets." >&2
+            echo "Required scopes: repo (classic) OR fine-grained with access to the infra repo and Actions: Read+write." >&2
+            exit 1
+          fi
+
+      - name: Dispatch to infra repo with image digest (cross-repo)
+        if: env.INFRA_REPO != github.repository
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GH_PAT_REPO_DISPATCH }}
+          repository: ${{ env.INFRA_REPO }}
+          event-type: backend-image-pushed
+          client-payload: |
+            {"image": "${{ steps.digest.outputs.image }}", "sourceRepo": "${{ github.repository }}"}
+
+      - name: Dispatch promotion to infra repo (cross-repo)
+        if: false # Promotion is now triggered after successful dev deploy from infra workflow
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GH_PAT_REPO_DISPATCH }}
+          repository: ${{ env.INFRA_REPO }}
+          event-type: backend-image-promote
+          client-payload: |
+            {"image": "${{ steps.digest.outputs.image }}"}
+
+      - name: Dispatch to infra repo with image digest (same-repo)
+        if: env.INFRA_REPO == github.repository
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ github.token }}
+          repository: ${{ env.INFRA_REPO }}
+          event-type: backend-image-pushed
+          client-payload: |
+            {"image": "${{ steps.digest.outputs.image }}", "sourceRepo": "${{ github.repository }}"}
+
+      - name: Dispatch promotion to infra repo (same-repo)
+        if: false # Promotion is now triggered after successful dev deploy from infra workflow
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ github.token }}
+          repository: ${{ env.INFRA_REPO }}
+          event-type: backend-image-promote
+          client-payload: |
+            {"image": "${{ steps.digest.outputs.image }}"}
