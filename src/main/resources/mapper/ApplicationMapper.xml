@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="x.y.z.backend.repository.mapper.ApplicationMapper">
+
+    <!-- Result Map for Application -->
+    <resultMap id="ApplicationResultMap" type="x.y.z.backend.domain.model.Application">
+        <id property="id" column="id"/>
+        <result property="applicationName" column="application_name"/>
+        <result property="applicationCode" column="application_code"/>
+        <result property="description" column="description"/>
+        <result property="status" column="status"/>
+        <result property="ownerName" column="owner_name"/>
+        <result property="ownerEmail" column="owner_email"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="updatedBy" column="updated_by"/>
+    </resultMap>
+
+    <!-- Insert Application -->
+    <insert id="insert" parameterType="x.y.z.backend.domain.model.Application" 
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO application (
+            application_name,
+            application_code,
+            description,
+            status,
+            owner_name,
+            owner_email,
+            created_by,
+            updated_by
+        ) VALUES (
+            #{applicationName},
+            #{applicationCode},
+            #{description},
+            #{status},
+            #{ownerName},
+            #{ownerEmail},
+            #{createdBy},
+            #{updatedBy}
+        )
+    </insert>
+
+    <!-- Update Application -->
+    <update id="update" parameterType="x.y.z.backend.domain.model.Application">
+        UPDATE application
+        SET application_name = #{applicationName},
+            description = #{description},
+            status = #{status},
+            owner_name = #{ownerName},
+            owner_email = #{ownerEmail},
+            updated_at = GETDATE(),
+            updated_by = #{updatedBy}
+        WHERE id = #{id}
+    </update>
+
+    <!-- Delete Application by ID -->
+    <delete id="deleteById">
+        DELETE FROM application WHERE id = #{id}
+    </delete>
+
+    <!-- Find Application by ID -->
+    <select id="findById" resultMap="ApplicationResultMap">
+        SELECT 
+            id,
+            application_name,
+            application_code,
+            description,
+            status,
+            owner_name,
+            owner_email,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM application
+        WHERE id = #{id}
+    </select>
+
+    <!-- Find Application by Code -->
+    <select id="findByApplicationCode" resultMap="ApplicationResultMap">
+        SELECT 
+            id,
+            application_name,
+            application_code,
+            description,
+            status,
+            owner_name,
+            owner_email,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM application
+        WHERE application_code = #{applicationCode}
+    </select>
+
+    <!-- Find All Applications -->
+    <select id="findAll" resultMap="ApplicationResultMap">
+        SELECT 
+            id,
+            application_name,
+            application_code,
+            description,
+            status,
+            owner_name,
+            owner_email,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM application
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- Find Applications by Status -->
+    <select id="findByStatus" resultMap="ApplicationResultMap">
+        SELECT 
+            id,
+            application_name,
+            application_code,
+            description,
+            status,
+            owner_name,
+            owner_email,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM application
+        WHERE status = #{status}
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- Search Applications by Name Pattern -->
+    <select id="searchByName" resultMap="ApplicationResultMap">
+        SELECT 
+            id,
+            application_name,
+            application_code,
+            description,
+            status,
+            owner_name,
+            owner_email,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM application
+        WHERE application_name LIKE '%' + #{namePattern} + '%'
+        ORDER BY application_name
+    </select>
+
+    <!-- Count Total Applications -->
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM application
+    </select>
+
+    <!-- Check if Application Code Exists -->
+    <select id="existsByApplicationCode" resultType="boolean">
+        SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END
+        FROM application
+        WHERE application_code = #{applicationCode}
+    </select>
+
+</mapper>

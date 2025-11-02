@@ -38,15 +38,20 @@ services:
       - SPRING_SECURITY_USER_PASSWORD=${SPRING_SECURITY_USER_PASSWORD:-admin123}
       
       # Database Configuration (SQL Server)
-      - SPRING_DATASOURCE_URL=jdbc:sqlserver://database:1433;databaseName=appdb;encrypt=true;trustServerCertificate=true
+      - SPRING_DATASOURCE_URL=jdbc:sqlserver://database:1433;databaseName=raptordb;encrypt=true;trustServerCertificate=true
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-sa}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-YourStrong@Passw0rd}
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.microsoft.sqlserver.jdbc.SQLServerDriver
       
-      # JPA/Hibernate Configuration
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      # JPA/Hibernate Configuration (validate mode - Flyway manages schema)
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=validate
       - SPRING_JPA_SHOW_SQL=false
       - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.SQLServerDialect
+      
+      # Flyway Configuration (automatic schema migrations)
+      - SPRING_FLYWAY_ENABLED=true
+      - SPRING_FLYWAY_LOCATIONS=classpath:db/migration
+      - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
       
       # MyBatis Configuration
       - MYBATIS_MAPPER_LOCATIONS=classpath:mapper/**/*.xml
