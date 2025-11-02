@@ -1,13 +1,32 @@
 version: '3.8'
 
 services:
-  # Spring Boot Backend Application
+  # Angular Frontend Application
+  frontend:
+    image: ${ACR_LOGIN_SERVER}/rap-frontend:${FRONTEND_VERSION:-latest}
+    container_name: rap-frontend
+    ports:
+      - "4200:80"
+    environment:
+      - API_BASE_URL=http://backend:8080
+      - PROCESS_SERVICE_URL=http://process-service:8090
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # Spring Boot Backend Application (Built Locally)
   backend:
     build:
       context: .
       dockerfile: Dockerfile
-    image: backend:latest
-    container_name: spring-backend
+    image: ${ACR_LOGIN_SERVER}/rap-backend:${BACKEND_VERSION:-dev}
+    container_name: rap-backend
     ports:
       - "8080:8080"
     environment:
@@ -19,7 +38,7 @@ services:
       - SPRING_SECURITY_USER_PASSWORD=${SPRING_SECURITY_USER_PASSWORD:-admin123}
       
       # Database Configuration (SQL Server)
-      - SPRING_DATASOURCE_URL=jdbc:sqlserver://sqlserver:1433;databaseName=appdb;encrypt=true;trustServerCertificate=true
+      - SPRING_DATASOURCE_URL=jdbc:sqlserver://database:1433;databaseName=appdb;encrypt=true;trustServerCertificate=true
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-sa}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-YourStrong@Passw0rd}
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.microsoft.sqlserver.jdbc.SQLServerDriver
@@ -40,10 +59,10 @@ services:
       # JVM Options
       - JAVA_OPTS=-Xmx512m -Xms256m
     depends_on:
-      sqlserver:
+      database:
         condition: service_healthy
     networks:
-      - backend-network
+      - app-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
@@ -52,21 +71,48 @@ services:
       retries: 3
       start_period: 40s
 
-  # SQL Server Database
-  sqlserver:
+  # jBPM Process Service
+  process-service:
+    image: ${ACR_LOGIN_SERVER}/rap-process-service:${PROCESS_SERVICE_VERSION:-latest}
+    container_name: rap-process-service
+    ports:
+      - "8090:8090"
+    environment:
+      - DB_HOST=database
+      - DB_PORT=1433
+      - DB_NAME=processdb
+      - DB_USERNAME=${DB_USERNAME:-sa}
+      - DB_PASSWORD=${DB_PASSWORD:-YourStrong@Passw0rd}
+      - BACKEND_SERVICE_URL=http://backend:8080
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Microsoft SQL Server Database
+  database:
     image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: sqlserver
+    container_name: rap-database
     environment:
       - ACCEPT_EULA=Y
       - SA_PASSWORD=${DB_PASSWORD:-YourStrong@Passw0rd}
       - MSSQL_PID=Developer
+      - MSSQL_AGENT_ENABLED=true
     ports:
       - "1433:1433"
     volumes:
-      - sqlserver-data:/var/opt/mssql
+      - database-data:/var/opt/mssql
       - ./init-scripts:/docker-entrypoint-initdb.d
     networks:
-      - backend-network
+      - app-network
     restart: unless-stopped
     healthcheck:
       test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$${SA_PASSWORD}" -C -Q "SELECT 1" || exit 1
@@ -76,9 +122,10 @@ services:
       start_period: 10s
 
 networks:
-  backend-network:
+  app-network:
     driver: bridge
+    name: rap-network
 
 volumes:
-  sqlserver-data:
+  database-data:
     driver: local
