@@ -47,6 +47,9 @@ jobs:
         run: |
           set -euo pipefail
           
+          # Ensure mvnw is executable (safety measure for Windows Git)
+          chmod +x ./mvnw
+          
           # Extract version from pom.xml
           if [ -f "pom.xml" ]; then
             APP_VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
