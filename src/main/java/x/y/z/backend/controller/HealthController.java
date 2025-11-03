@@ -18,7 +18,7 @@ public class HealthController {
         response.put("message", "Welcome to Spring Boot Backend API");
         response.put("status", "UP");
         response.put("timestamp", LocalDateTime.now());
-        response.put("version", "0.0.1-SNAPSHOT");
+        response.put("version", "0.0.2-SNAPSHOT");
         return response;
     }
 
