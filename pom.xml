@@ -32,6 +32,14 @@
 		<azure.version>1.2.19</azure.version>
 		<spring-cloud-azure.version>5.18.0</spring-cloud-azure.version>
 	</properties>
+	<repositories>
+		<!-- Shibboleth repository for OpenSAML dependencies -->
+		<repository>
+			<id>shibboleth</id>
+			<name>Shibboleth Repository</name>
+			<url>https://build.shibboleth.net/maven/releases/</url>
+		</repository>
+	</repositories>
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
@@ -82,10 +90,7 @@
 		</dependency>
 		
 		<!-- Azure SQL Database with Managed Identity -->
-		<dependency>
-			<groupId>com.azure.spring</groupId>
-			<artifactId>spring-cloud-azure-starter-jdbc-mssql</artifactId>
-		</dependency>
+		<!-- Using core Azure libraries instead of Spring Cloud Azure starter -->
 		<dependency>
 			<groupId>com.microsoft.sqlserver</groupId>
 			<artifactId>mssql-jdbc</artifactId>
