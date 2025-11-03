@@ -47,12 +47,10 @@ jobs:
         run: |
           set -euo pipefail
           
-          # Ensure mvnw is executable (safety measure for Windows Git)
-          chmod +x ./mvnw
-          
-          # Extract version from pom.xml
+          # Extract version directly from pom.xml (simpler and faster than running Maven)
           if [ -f "pom.xml" ]; then
-            APP_VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
+            # Get the first <version> tag which should be the project version
+            APP_VERSION=$(grep -m1 '<version>' pom.xml | sed 's/.*<version>\(.*\)<\/version>.*/\1/' | tr -d '[:space:]')
             echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
             echo "Using application version: $APP_VERSION"
           else
