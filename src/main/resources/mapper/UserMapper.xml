@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="x.y.z.backend.repository.mapper.UserMapper">
+
+    <!-- Result Map for User -->
+    <resultMap id="UserResultMap" type="x.y.z.backend.domain.model.User">
+        <id property="id" column="id"/>
+        <result property="oidcSubject" column="oidc_subject"/>
+        <result property="email" column="email"/>
+        <result property="fullName" column="full_name"/>
+        <result property="isActive" column="is_active"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="lastLoginAt" column="last_login_at"/>
+    </resultMap>
+
+    <!-- Insert User -->
+    <insert id="insert" parameterType="x.y.z.backend.domain.model.User">
+        INSERT INTO users (
+            id,
+            oidc_subject,
+            email,
+            full_name,
+            is_active,
+            created_at,
+            updated_at,
+            last_login_at
+        ) VALUES (
+            NEWID(),
+            #{oidcSubject},
+            #{email},
+            #{fullName},
+            #{isActive},
+            GETUTCDATE(),
+            GETUTCDATE(),
+            #{lastLoginAt}
+        )
+    </insert>
+
+    <!-- Update User -->
+    <update id="update" parameterType="x.y.z.backend.domain.model.User">
+        UPDATE users
+        SET email = #{email},
+            full_name = #{fullName},
+            is_active = #{isActive},
+            updated_at = GETUTCDATE()
+        WHERE id = #{id}
+    </update>
+
+    <!-- Find User by ID -->
+    <select id="findById" resultMap="UserResultMap">
+        SELECT * FROM users
+        WHERE id = #{id}
+    </select>
+
+    <!-- Find User by OIDC Subject -->
+    <select id="findByOidcSubject" resultMap="UserResultMap">
+        SELECT * FROM users
+        WHERE oidc_subject = #{oidcSubject}
+    </select>
+
+    <!-- Find User by Email -->
+    <select id="findByEmail" resultMap="UserResultMap">
+        SELECT * FROM users
+        WHERE email = #{email}
+    </select>
+
+    <!-- Find All Users -->
+    <select id="findAll" resultMap="UserResultMap">
+        SELECT * FROM users
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- Find All Active Users -->
+    <select id="findAllActive" resultMap="UserResultMap">
+        SELECT * FROM users
+        WHERE is_active = 1
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- Update Last Login -->
+    <update id="updateLastLogin">
+        UPDATE users
+        SET last_login_at = #{lastLoginAt},
+            updated_at = GETUTCDATE()
+        WHERE id = #{id}
+    </update>
+
+    <!-- Deactivate User -->
+    <update id="deactivate">
+        UPDATE users
+        SET is_active = 0,
+            updated_at = GETUTCDATE()
+        WHERE id = #{id}
+    </update>
+
+    <!-- Activate User -->
+    <update id="activate">
+        UPDATE users
+        SET is_active = 1,
+            updated_at = GETUTCDATE()
+        WHERE id = #{id}
+    </update>
+
+    <!-- Delete User by ID -->
+    <delete id="deleteById">
+        DELETE FROM users
+        WHERE id = #{id}
+    </delete>
+
+</mapper>

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="x.y.z.backend.repository.mapper.RevokedTokenMapper">
+
+    <!-- Result Map for RevokedToken -->
+    <resultMap id="RevokedTokenResultMap" type="x.y.z.backend.domain.model.RevokedToken">
+        <id property="id" column="id"/>
+        <result property="jti" column="jti"/>
+        <result property="userId" column="user_id"/>
+        <result property="expiresAt" column="expires_at"/>
+        <result property="revokedAt" column="revoked_at"/>
+        <result property="reason" column="reason"/>
+    </resultMap>
+
+    <!-- Insert RevokedToken -->
+    <insert id="insert" parameterType="x.y.z.backend.domain.model.RevokedToken">
+        INSERT INTO revoked_tokens (
+            id,
+            jti,
+            user_id,
+            expires_at,
+            revoked_at,
+            reason
+        ) VALUES (
+            NEWID(),
+            #{jti},
+            #{userId},
+            #{expiresAt},
+            GETUTCDATE(),
+            #{reason}
+        )
+    </insert>
+
+    <!-- Find RevokedToken by ID -->
+    <select id="findById" resultMap="RevokedTokenResultMap">
+        SELECT * FROM revoked_tokens
+        WHERE id = #{id}
+    </select>
+
+    <!-- Find RevokedToken by JTI -->
+    <select id="findByJti" resultMap="RevokedTokenResultMap">
+        SELECT * FROM revoked_tokens
+        WHERE jti = #{jti}
+    </select>
+
+    <!-- Check if Token is Revoked -->
+    <select id="isRevoked" resultType="boolean">
+        SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END
+        FROM revoked_tokens
+        WHERE jti = #{jti}
+    </select>
+
+    <!-- Find RevokedTokens by User ID -->
+    <select id="findByUserId" resultMap="RevokedTokenResultMap">
+        SELECT * FROM revoked_tokens
+        WHERE user_id = #{userId}
+        ORDER BY revoked_at DESC
+    </select>
+
+    <!-- Delete Expired RevokedTokens -->
+    <delete id="deleteExpired">
+        DELETE FROM revoked_tokens
+        WHERE expires_at &lt; #{currentTime}
+    </delete>
+
+    <!-- Delete RevokedToken by ID -->
+    <delete id="deleteById">
+        DELETE FROM revoked_tokens
+        WHERE id = #{id}
+    </delete>
+
+</mapper>

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="x.y.z.backend.repository.mapper.RefreshTokenMapper">
+
+    <!-- Result Map for RefreshToken -->
+    <resultMap id="RefreshTokenResultMap" type="x.y.z.backend.domain.model.RefreshToken">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="tokenHash" column="token_hash"/>
+        <result property="expiresAt" column="expires_at"/>
+        <result property="isRevoked" column="is_revoked"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="revokedAt" column="revoked_at"/>
+    </resultMap>
+
+    <!-- Insert RefreshToken -->
+    <insert id="insert" parameterType="x.y.z.backend.domain.model.RefreshToken">
+        INSERT INTO refresh_tokens (
+            id,
+            user_id,
+            token_hash,
+            expires_at,
+            is_revoked,
+            created_at,
+            revoked_at
+        ) VALUES (
+            NEWID(),
+            #{userId},
+            #{tokenHash},
+            #{expiresAt},
+            #{isRevoked},
+            GETUTCDATE(),
+            #{revokedAt}
+        )
+    </insert>
+
+    <!-- Find RefreshToken by ID -->
+    <select id="findById" resultMap="RefreshTokenResultMap">
+        SELECT * FROM refresh_tokens
+        WHERE id = #{id}
+    </select>
+
+    <!-- Find RefreshToken by Token Hash -->
+    <select id="findByTokenHash" resultMap="RefreshTokenResultMap">
+        SELECT * FROM refresh_tokens
+        WHERE token_hash = #{tokenHash}
+    </select>
+
+    <!-- Find Active RefreshTokens by User ID -->
+    <select id="findActiveByUserId" resultMap="RefreshTokenResultMap">
+        SELECT * FROM refresh_tokens
+        WHERE user_id = #{userId}
+          AND is_revoked = 0
+          AND expires_at > GETUTCDATE()
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- Find All RefreshTokens by User ID -->
+    <select id="findByUserId" resultMap="RefreshTokenResultMap">
+        SELECT * FROM refresh_tokens
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- Revoke RefreshToken -->
+    <update id="revoke">
+        UPDATE refresh_tokens
+        SET is_revoked = 1,
+            revoked_at = #{revokedAt}
+        WHERE id = #{id}
+    </update>
+
+    <!-- Revoke All RefreshTokens for User -->
+    <update id="revokeAllByUserId">
+        UPDATE refresh_tokens
+        SET is_revoked = 1,
+            revoked_at = #{revokedAt}
+        WHERE user_id = #{userId}
+          AND is_revoked = 0
+    </update>
+
+    <!-- Delete Expired RefreshTokens -->
+    <delete id="deleteExpired">
+        DELETE FROM refresh_tokens
+        WHERE expires_at &lt; #{currentTime}
+    </delete>
+
+    <!-- Delete RefreshToken by ID -->
+    <delete id="deleteById">
+        DELETE FROM refresh_tokens
+        WHERE id = #{id}
+    </delete>
+
+</mapper>
