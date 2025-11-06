@@ -170,4 +170,24 @@ public class UserService {
     public void activateUser(UUID userId) {
         userHandler.activate(userId);
     }
+
+    /**
+     * Get all active users
+     * 
+     * @return List of active users
+     */
+    @Transactional(readOnly = true)
+    public List<User> getAllActiveUsers() {
+        return userHandler.findAllActive();
+    }
+
+    /**
+     * Get all users (including inactive)
+     * 
+     * @return List of all users
+     */
+    @Transactional(readOnly = true)
+    public List<User> getAllUsers() {
+        return userHandler.findAll();
+    }
 }
