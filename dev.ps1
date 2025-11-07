@@ -91,9 +91,12 @@ function Dev-Full {
         Write-Host "✓ All services started!" -ForegroundColor Green
         Write-Host "  Frontend:        http://localhost:4200" -ForegroundColor White
         Write-Host "  Backend:         http://localhost:8080" -ForegroundColor White
-        Write-Host "  Process Service: http://localhost:8090" -ForegroundColor White
+        Write-Host "  Keycloak:        http://localhost:9090" -ForegroundColor White
+        Write-Host "  Keycloak Admin:  http://localhost:9090/admin (admin/admin)" -ForegroundColor White
         Write-Host "  Database:        localhost:1433" -ForegroundColor White
         Write-Host ""
+        Write-Host "Note: Keycloak takes ~60s to start. Check status with './dev.ps1 Logs keycloak'" -ForegroundColor Yellow
+        Write-Host "Note: Process Service (port 8090) is disabled - not available in ACR" -ForegroundColor Yellow
         Write-Host "Use './dev.ps1 Logs' to view logs" -ForegroundColor Yellow
     } else {
         Write-Host "✗ Failed to start services" -ForegroundColor Red

@@ -6,9 +6,9 @@
 
     <!-- Result Map for RevokedToken -->
     <resultMap id="RevokedTokenResultMap" type="x.y.z.backend.domain.model.RevokedToken">
-        <id property="id" column="id"/>
+        <id property="id" column="id" javaType="java.util.UUID"/>
         <result property="jti" column="jti"/>
-        <result property="userId" column="user_id"/>
+        <result property="userId" column="user_id" javaType="java.util.UUID"/>
         <result property="expiresAt" column="expires_at"/>
         <result property="revokedAt" column="revoked_at"/>
         <result property="reason" column="reason"/>

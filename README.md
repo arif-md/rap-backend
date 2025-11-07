@@ -79,11 +79,21 @@ Spring Boot REST API service for the RAP (Rapid Application Platform) applicatio
 
 ## Documentation
 
-- **[Local Development Guide](LOCAL-DEVELOPMENT.md)** - Complete guide for local development with all services
+### Getting Started
+- **[Local Environment Setup](LOCAL-ENVIRONMENT-SETUP.md)** - ⭐ **START HERE** - Complete .env configuration guide
+- **[Local Development Guide](LOCAL-DEVELOPMENT.md)** - Development workflow and best practices
+- **[Keycloak Setup](../docs/KEYCLOAK-LOCAL-SETUP.md)** - OIDC authentication provider configuration
+
+### Reference Guides
 - **[Docker Internals](DOCKER-INTERNALS.md)** - Deep dive into Docker layers, caching, and optimization
 - **[Accessing the App](ACCESSING-THE-APP.md)** - API authentication and endpoint details
 - **[Environment Variables](ENVIRONMENT-VARIABLES.md)** - Environment configuration across dev/test/prod
 - **[Docker README](README-DOCKER.md)** - Basic Docker usage guide
+
+### Implementation Guides
+- **[OIDC Implementation](docs/OIDC-IMPLEMENTATION-SUMMARY.md)** - Backend OIDC authentication details
+- **[Testing Guide](TESTING-GUIDE.md)** - API testing and validation
+- **[Quick Reference](QUICK-REFERENCE.md)** - Common commands and patterns
 
 ## Architecture
 

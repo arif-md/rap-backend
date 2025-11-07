@@ -3,9 +3,9 @@
 -- ===================================================================
 -- Description: Creates tables for OIDC authentication, user management,
 --              role-based authorization, JWT refresh tokens, and token revocation
--- Version: V3
+-- Version: V5
 -- Author: System
--- Date: 2025-11-05
+-- Date: 2025-11-06
 -- ===================================================================
 
 -- ===================================================================

@@ -6,8 +6,8 @@
 
     <!-- Result Map for RefreshToken -->
     <resultMap id="RefreshTokenResultMap" type="x.y.z.backend.domain.model.RefreshToken">
-        <id property="id" column="id"/>
-        <result property="userId" column="user_id"/>
+        <id property="id" column="id" javaType="java.util.UUID"/>
+        <result property="userId" column="user_id" javaType="java.util.UUID"/>
         <result property="tokenHash" column="token_hash"/>
         <result property="expiresAt" column="expires_at"/>
         <result property="isRevoked" column="is_revoked"/>

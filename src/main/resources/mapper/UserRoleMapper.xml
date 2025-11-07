@@ -6,9 +6,9 @@
 
     <!-- Result Map for UserRole -->
     <resultMap id="UserRoleResultMap" type="x.y.z.backend.domain.model.UserRole">
-        <id property="id" column="id"/>
-        <result property="userId" column="user_id"/>
-        <result property="roleId" column="role_id"/>
+        <id property="id" column="id" javaType="java.util.UUID"/>
+        <result property="userId" column="user_id" javaType="java.util.UUID"/>
+        <result property="roleId" column="role_id" javaType="java.util.UUID"/>
         <result property="grantedAt" column="granted_at"/>
         <result property="grantedBy" column="granted_by"/>
     </resultMap>

@@ -3,12 +3,12 @@ version: '3.8'
 services:
   # Angular Frontend Application
   frontend:
-    image: ${ACR_LOGIN_SERVER}/rap-frontend:${FRONTEND_VERSION:-latest}
+    image: ${ACR_LOGIN_SERVER}/raptor/frontend-dev:${FRONTEND_VERSION:-latest}
     container_name: rap-frontend
     ports:
       - "4200:80"
     environment:
-      - API_BASE_URL=http://backend:8080
+      - API_BASE_URL=${API_BASE_URL:-http://localhost:8080}
       - PROCESS_SERVICE_URL=http://process-service:8090
     networks:
       - app-network
@@ -19,13 +19,15 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
+    profiles:
+      - full-stack
 
   # Spring Boot Backend Application (Built Locally)
   backend:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ${ACR_LOGIN_SERVER}/rap-backend:${BACKEND_VERSION:-dev}
+    image: ${ACR_LOGIN_SERVER}/raptor/backend-dev:${BACKEND_VERSION:-dev}
     container_name: rap-backend
     ports:
       - "8080:8080"
@@ -36,6 +38,12 @@ services:
       # Spring Security Configuration
       - SPRING_SECURITY_USER_NAME=${SPRING_SECURITY_USER_NAME:-admin}
       - SPRING_SECURITY_USER_PASSWORD=${SPRING_SECURITY_USER_PASSWORD:-admin123}
+      
+      # OIDC Configuration (Keycloak)
+      - OIDC_PROVIDER_ISSUER_URI=${OIDC_PROVIDER_ISSUER_URI:-http://keycloak:9090/realms/raptor}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-raptor-client}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:4200}
       
       # Database Configuration (SQL Server)
       - SPRING_DATASOURCE_URL=jdbc:sqlserver://database:1433;databaseName=raptordb;encrypt=true;trustServerCertificate=true
@@ -66,6 +74,8 @@ services:
     depends_on:
       database:
         condition: service_healthy
+      # Note: Keycloak dependency removed - backend can start without OIDC provider
+      # If OIDC is needed, start Keycloak separately with: docker-compose up -d keycloak
     networks:
       - app-network
     restart: unless-stopped
@@ -76,36 +86,76 @@ services:
       retries: 3
       start_period: 40s
 
-  # jBPM Process Service
-  process-service:
-    image: ${ACR_LOGIN_SERVER}/rap-process-service:${PROCESS_SERVICE_VERSION:-latest}
-    container_name: rap-process-service
-    ports:
-      - "8090:8090"
+  # Keycloak OIDC Provider (Development)
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: rap-keycloak
     environment:
-      - DB_HOST=database
-      - DB_PORT=1433
-      - DB_NAME=processdb
-      - DB_USERNAME=${DB_USERNAME:-sa}
-      - DB_PASSWORD=${DB_PASSWORD:-YourStrong@Passw0rd}
-      - BACKEND_SERVICE_URL=http://backend:8080
+      # Admin Credentials
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      
+      # HTTP Port Configuration
+      - KC_HTTP_PORT=9090
+      - KC_HOSTNAME_STRICT=false
+      - KC_HOSTNAME_STRICT_HTTPS=false
+      
+      # Database Configuration (PostgreSQL for Keycloak)
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://keycloak-db:5432/keycloak
+      - KC_DB_USERNAME=${KEYCLOAK_DB_USER:-keycloak}
+      - KC_DB_PASSWORD=${KEYCLOAK_DB_PASSWORD:-keycloak}
+      
+      # Health and Metrics
+      - KC_HEALTH_ENABLED=true
+      - KC_METRICS_ENABLED=true
+    ports:
+      - "9090:9090"
+    command:
+      - start-dev
+      - --http-port=9090
     depends_on:
-      database:
+      keycloak-db:
         condition: service_healthy
     networks:
       - app-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9090 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
       start_period: 60s
+    profiles:
+      - full-stack
+
+  # PostgreSQL Database for Keycloak
+  keycloak-db:
+    image: postgres:15-alpine
+    container_name: rap-keycloak-db
+    environment:
+      - POSTGRES_DB=keycloak
+      - POSTGRES_USER=${KEYCLOAK_DB_USER:-keycloak}
+      - POSTGRES_PASSWORD=${KEYCLOAK_DB_PASSWORD:-keycloak}
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    profiles:
+      - full-stack
 
   # Microsoft SQL Server Database
   database:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: rap-database
+    entrypoint: ["/bin/bash", "/docker-entrypoint-initdb.d/entrypoint.sh"]
     environment:
       - ACCEPT_EULA=Y
       - SA_PASSWORD=${DB_PASSWORD:-YourStrong@Passw0rd}
@@ -133,4 +183,6 @@ networks:
 
 volumes:
   database-data:
+    driver: local
+  keycloak-db-data:
     driver: local

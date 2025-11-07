@@ -67,7 +67,7 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> login() {
         Map<String, String> response = new HashMap<>();
         response.put("message", "Redirecting to OIDC provider...");
-        response.put("oauth2LoginUrl", "/oauth2/authorization/oidc");
+        response.put("oauth2LoginUrl", "/oauth2/authorization/oidc-provider");
         return ResponseEntity.ok(response);
     }
 

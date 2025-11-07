@@ -6,7 +6,7 @@
 
     <!-- Result Map for User -->
     <resultMap id="UserResultMap" type="x.y.z.backend.domain.model.User">
-        <id property="id" column="id"/>
+        <id property="id" column="id" javaType="java.util.UUID"/>
         <result property="oidcSubject" column="oidc_subject"/>
         <result property="email" column="email"/>
         <result property="fullName" column="full_name"/>
