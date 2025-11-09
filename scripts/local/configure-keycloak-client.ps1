@@ -7,13 +7,15 @@
 .DESCRIPTION
     This script:
     1. Authenticates to Keycloak admin API
-    2. Finds the raptor-client by clientId
-    3. Updates configuration to enable:
+    2. Creates the realm if it doesn't exist
+    3. Creates the raptor-client if it doesn't exist
+    4. Updates configuration to enable:
        - Direct Access Grants (password flow for testing)
        - Client authentication (confidential client)
        - Standard OAuth2 flow
-    4. Regenerates client secret if needed
-    5. Displays the client secret
+    5. Creates test users (admin@raptor.local, user@raptor.local)
+    6. Regenerates client secret if needed
+    7. Displays the client secret
 
 .PARAMETER KeycloakUrl
     Keycloak server URL (default: http://localhost:9090)
@@ -30,11 +32,14 @@
 .PARAMETER AdminPassword
     Keycloak admin password (default: admin)
 
+.PARAMETER UserPassword
+    Password for test users (default: admin123)
+
 .EXAMPLE
     .\configure-keycloak-client.ps1
 
 .EXAMPLE
-    .\configure-keycloak-client.ps1 -ClientId my-client
+    .\configure-keycloak-client.ps1 -UserPassword "mypassword"
 #>
 
 param(
@@ -42,7 +47,8 @@ param(
     [string]$Realm = "raptor",
     [string]$ClientId = "raptor-client",
     [string]$AdminUsername = "admin",
-    [string]$AdminPassword = "admin"
+    [string]$AdminPassword = "admin",
+    [string]$UserPassword = "admin123"
 )
 
 $ErrorActionPreference = "Stop"
@@ -72,9 +78,54 @@ catch {
     exit 1
 }
 
-# Step 2: Find client by clientId to get internal UUID
+# Step 1.5: Check if realm exists, create if it doesn't
 Write-Host ""
-Write-Host "Step 2: Finding client internal ID..." -ForegroundColor Yellow
+Write-Host "Step 1.5: Checking if realm '$Realm' exists..." -ForegroundColor Yellow
+try {
+    $realmsUrl = "$KeycloakUrl/admin/realms/$Realm"
+    $headers = @{
+        Authorization = "Bearer $adminToken"
+        Accept = "application/json"
+    }
+    
+    try {
+        $existingRealm = Invoke-RestMethod -Uri $realmsUrl -Method Get -Headers $headers
+        Write-Host "✓ Realm '$Realm' already exists" -ForegroundColor Green
+    }
+    catch {
+        if ($_.Exception.Response.StatusCode -eq 404 -or $_.ErrorDetails.Message -like "*Realm not found*") {
+            Write-Host "Realm '$Realm' not found. Creating..." -ForegroundColor Yellow
+            
+            # Create the realm
+            $createRealmUrl = "$KeycloakUrl/admin/realms"
+            $realmConfig = @{
+                realm = $Realm
+                enabled = $true
+                displayName = "Raptor"
+                displayNameHtml = "<strong>Raptor</strong>"
+            } | ConvertTo-Json
+            
+            $createHeaders = @{
+                Authorization = "Bearer $adminToken"
+                "Content-Type" = "application/json"
+            }
+            
+            Invoke-RestMethod -Uri $createRealmUrl -Method Post -Headers $createHeaders -Body $realmConfig | Out-Null
+            Write-Host "✓ Realm '$Realm' created successfully" -ForegroundColor Green
+        }
+        else {
+            throw
+        }
+    }
+}
+catch {
+    Write-Host "✗ Failed to check/create realm: $_" -ForegroundColor Red
+    exit 1
+}
+
+# Step 2: Find or create client by clientId
+Write-Host ""
+Write-Host "Step 2: Finding or creating client..." -ForegroundColor Yellow
 try {
     $clientsUrl = "$KeycloakUrl/admin/realms/$Realm/clients"
     $headers = @{
@@ -86,7 +137,44 @@ try {
     $client = $clients | Where-Object { $_.clientId -eq $ClientId }
     
     if (-not $client) {
-        Write-Host "✗ Client '$ClientId' not found in realm '$Realm'" -ForegroundColor Red
+        Write-Host "Client '$ClientId' not found. Creating..." -ForegroundColor Yellow
+        
+        # Create the client
+        $newClient = @{
+            clientId = $ClientId
+            name = "Raptor Client"
+            description = "Raptor application OAuth2 client"
+            enabled = $true
+            publicClient = $false
+            directAccessGrantsEnabled = $true
+            standardFlowEnabled = $true
+            implicitFlowEnabled = $false
+            serviceAccountsEnabled = $false
+            redirectUris = @(
+                "http://localhost:8080/*",
+                "http://localhost:4200/*"
+            )
+            webOrigins = @(
+                "http://localhost:4200"
+            )
+            protocol = "openid-connect"
+        } | ConvertTo-Json -Depth 10
+        
+        $createHeaders = @{
+            Authorization = "Bearer $adminToken"
+            "Content-Type" = "application/json"
+        }
+        
+        Invoke-RestMethod -Uri $clientsUrl -Method Post -Headers $createHeaders -Body $newClient | Out-Null
+        Write-Host "✓ Client '$ClientId' created successfully" -ForegroundColor Green
+        
+        # Retrieve the newly created client to get its UUID
+        $clients = Invoke-RestMethod -Uri $clientsUrl -Method Get -Headers $headers
+        $client = $clients | Where-Object { $_.clientId -eq $ClientId }
+    }
+    
+    if (-not $client) {
+        Write-Host "✗ Failed to find client after creation" -ForegroundColor Red
         exit 1
     }
     
@@ -94,7 +182,7 @@ try {
     Write-Host "✓ Client found: $ClientId (ID: $clientUuid)" -ForegroundColor Green
 }
 catch {
-    Write-Host "✗ Failed to find client: $_" -ForegroundColor Red
+    Write-Host "✗ Failed to find/create client: $_" -ForegroundColor Red
     exit 1
 }
 
@@ -177,9 +265,87 @@ catch {
     exit 1
 }
 
-# Step 5: Verify configuration
+# Step 5: Create test users
 Write-Host ""
-Write-Host "Step 5: Verifying configuration..." -ForegroundColor Yellow
+Write-Host "Step 5: Creating test users..." -ForegroundColor Yellow
+
+$createHeaders = @{
+    Authorization = "Bearer $adminToken"
+    "Content-Type" = "application/json"
+}
+
+$testUsers = @(
+    @{
+        username = "admin@raptor.local"
+        email = "admin@raptor.local"
+        firstName = "Admin"
+        lastName = "User"
+        role = "ADMIN"
+    },
+    @{
+        username = "user@raptor.local"
+        email = "user@raptor.local"
+        firstName = "Regular"
+        lastName = "User"
+        role = "USER"
+    }
+)
+
+foreach ($userConfig in $testUsers) {
+    try {
+        # Check if user exists
+        $usersUrl = "$KeycloakUrl/admin/realms/$Realm/users?username=$($userConfig.username)"
+        $existingUsers = Invoke-RestMethod -Uri $usersUrl -Method Get -Headers $headers
+        
+        $userId = $null
+        if ($existingUsers -and $existingUsers.Count -gt 0) {
+            $userId = $existingUsers[0].id
+            Write-Host "  User '$($userConfig.username)' already exists" -ForegroundColor Yellow
+        }
+        else {
+            # Create user
+            $createUsersUrl = "$KeycloakUrl/admin/realms/$Realm/users"
+            $newUser = @{
+                username = $userConfig.username
+                email = $userConfig.email
+                emailVerified = $true
+                firstName = $userConfig.firstName
+                lastName = $userConfig.lastName
+                enabled = $true
+                attributes = @{
+                    roles = @($userConfig.role)
+                }
+            } | ConvertTo-Json -Depth 10
+            
+            Invoke-RestMethod -Uri $createUsersUrl -Method Post -Headers $createHeaders -Body $newUser | Out-Null
+            Write-Host "  ✓ Created user: $($userConfig.username)" -ForegroundColor Green
+            
+            # Get the created user's ID
+            $existingUsers = Invoke-RestMethod -Uri $usersUrl -Method Get -Headers $headers
+            $userId = $existingUsers[0].id
+        }
+        
+        # Set password (always reset to ensure it's correct)
+        if ($userId) {
+            $passwordUrl = "$KeycloakUrl/admin/realms/$Realm/users/$userId/reset-password"
+            $passwordData = @{
+                type = "password"
+                value = $UserPassword
+                temporary = $false
+            } | ConvertTo-Json
+            
+            Invoke-RestMethod -Uri $passwordUrl -Method Put -Headers $createHeaders -Body $passwordData | Out-Null
+            Write-Host "  ✓ Set password for: $($userConfig.username)" -ForegroundColor Green
+        }
+    }
+    catch {
+        Write-Host "  ✗ Failed to create/update user '$($userConfig.username)': $_" -ForegroundColor Red
+    }
+}
+
+# Step 6: Verify configuration
+Write-Host ""
+Write-Host "Step 6: Verifying configuration..." -ForegroundColor Yellow
 try {
     $verifyUrl = "$KeycloakUrl/admin/realms/$Realm/clients/$clientUuid"
     $verifiedConfig = Invoke-RestMethod -Uri $verifyUrl -Method Get -Headers $headers
@@ -206,13 +372,14 @@ try {
     Write-Host ""
     Write-Host "✓ Configuration verified successfully!" -ForegroundColor Green
     
-    # Display the secret prominently
+    # Display the secret in the format expected by setup-after-docker-cleanup.ps1
     Write-Host ""
     Write-Host "==============================================================" -ForegroundColor Cyan
     Write-Host "CLIENT SECRET" -ForegroundColor Yellow
     Write-Host "==============================================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "  $clientSecret" -ForegroundColor Green
+    # Output without color for parsing
+    Write-Output "Client Secret: $clientSecret"
     Write-Host ""
     Write-Host "==============================================================" -ForegroundColor Cyan
     Write-Host ""
@@ -228,5 +395,6 @@ catch {
 Write-Host ""
 Write-Host "=== Configuration Complete ===" -ForegroundColor Green
 Write-Host ""
-Write-Host "You can now run: .\test-oidc-flow-advanced.ps1" -ForegroundColor Cyan
-Write-Host ""
+
+# Exit with success code
+exit 0

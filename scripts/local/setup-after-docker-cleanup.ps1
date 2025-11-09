@@ -65,9 +65,11 @@ function Write-Section {
 }
 
 # Configuration
-$BackendDir = Get-Location
+$ScriptDir = $PSScriptRoot
+$BackendDir = Split-Path (Split-Path $ScriptDir -Parent) -Parent
 $EnvFile = Join-Path $BackendDir ".env"
-$ScriptsDir = Join-Path $BackendDir "scripts\local"
+$DevScriptPath = Join-Path $BackendDir "dev.ps1"
+$ScriptsLocalDir = $ScriptDir
 
 Write-Section "RAP Backend - Post Docker Cleanup Setup"
 
@@ -75,9 +77,12 @@ Write-Section "RAP Backend - Post Docker Cleanup Setup"
 if (-not $SkipServiceStart) {
     Write-Info "Step 1/7: Starting Docker services..."
     
-    & "$BackendDir\dev.ps1" Dev-Start
+    Push-Location $BackendDir
+    & $DevScriptPath Dev-Start
+    $exitCode = $LASTEXITCODE
+    Pop-Location
     
-    if ($LASTEXITCODE -ne 0) {
+    if ($exitCode -ne 0) {
         Write-Error-Message "Failed to start services"
         exit 1
     }
@@ -105,7 +110,7 @@ try {
 # Step 3: Configure Keycloak client and create user
 Write-Info "Step 3/7: Configuring Keycloak client and creating test user..."
 
-$clientScriptPath = Join-Path $ScriptsDir "configure-keycloak-client.ps1"
+$clientScriptPath = Join-Path $ScriptsLocalDir "configure-keycloak-client.ps1"
 
 if (-not (Test-Path $clientScriptPath)) {
     Write-Error-Message "Client configuration script not found: $clientScriptPath"
@@ -143,7 +148,7 @@ Write-Info "Client Secret: $clientSecret"
 # Step 4: Configure Keycloak frontendUrl
 Write-Info "Step 4/7: Configuring Keycloak frontendUrl..."
 
-$frontendUrlScriptPath = Join-Path $ScriptsDir "configure-keycloak-frontend-url.ps1"
+$frontendUrlScriptPath = Join-Path $ScriptsLocalDir "configure-keycloak-frontend-url.ps1"
 
 if (-not (Test-Path $frontendUrlScriptPath)) {
     Write-Error-Message "FrontendUrl configuration script not found: $frontendUrlScriptPath"
@@ -188,9 +193,12 @@ $backendContainer = docker ps --filter "name=rap-backend" --format "{{.Names}}" 
 if (-not $backendContainer) {
     Write-Error-Message "Backend container is not running"
     Write-Info "Starting backend container..."
+    Push-Location $BackendDir
     docker-compose up -d backend
+    $exitCode = $LASTEXITCODE
+    Pop-Location
     
-    if ($LASTEXITCODE -ne 0) {
+    if ($exitCode -ne 0) {
         Write-Error-Message "Failed to start backend container"
         exit 1
     }
@@ -203,9 +211,12 @@ if (-not $backendContainer) {
 # Step 7: Restart backend to pick up new client secret
 Write-Info "Step 7/7: Restarting backend with new configuration..."
 
+Push-Location $BackendDir
 docker-compose restart backend | Out-Null
+$exitCode = $LASTEXITCODE
+Pop-Location
 
-if ($LASTEXITCODE -ne 0) {
+if ($exitCode -ne 0) {
     Write-Error-Message "Failed to restart backend"
     exit 1
 }

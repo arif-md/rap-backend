@@ -43,9 +43,9 @@ for script in /docker-entrypoint-initdb.d/*.sql; do
     if [ -f "$script" ]; then
         echo "Executing $script..."
         if /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$SA_PASSWORD" -C -i "$script"; then
-            echo "✓ Successfully executed $script"
+            echo "âœ“ Successfully executed $script"
         else
-            echo "✗ ERROR: Failed to execute $script"
+            echo "âœ— ERROR: Failed to execute $script"
             SCRIPT_ERROR=1
         fi
     fi
@@ -64,7 +64,7 @@ if [ $SCRIPT_ERROR -eq 1 ]; then
     exit 1
 fi
 
-echo "✓ Initialization complete!"
+echo "âœ“ Initialization complete!"
 echo "Database is ready for connections on port 1433"
 
 # Keep SQL Server running in the foreground
