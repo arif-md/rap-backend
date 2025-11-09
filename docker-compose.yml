@@ -31,6 +31,8 @@ services:
     container_name: rap-backend
     ports:
       - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       # Spring Profile
       - SPRING_PROFILES_ACTIVE=docker
@@ -39,11 +41,20 @@ services:
       - SPRING_SECURITY_USER_NAME=${SPRING_SECURITY_USER_NAME:-admin}
       - SPRING_SECURITY_USER_PASSWORD=${SPRING_SECURITY_USER_PASSWORD:-admin123}
       
-      # OIDC Configuration (Keycloak)
-      - OIDC_PROVIDER_ISSUER_URI=${OIDC_PROVIDER_ISSUER_URI:-http://keycloak:9090/realms/raptor}
+      # OIDC Configuration (Keycloak) - Mixed hostname strategy
+      # Authorization endpoint: localhost (for browser redirects)
+      # Other endpoints: host.docker.internal (for backend server calls from container)
+      - OIDC_AUTHORIZATION_URI=${OIDC_AUTHORIZATION_URI:-http://localhost:9090/realms/raptor/protocol/openid-connect/auth}
+      - OIDC_TOKEN_URI=${OIDC_TOKEN_URI:-http://host.docker.internal:9090/realms/raptor/protocol/openid-connect/token}
+      - OIDC_USER_INFO_URI=${OIDC_USER_INFO_URI:-http://host.docker.internal:9090/realms/raptor/protocol/openid-connect/userinfo}
+      - OIDC_JWK_SET_URI=${OIDC_JWK_SET_URI:-http://host.docker.internal:9090/realms/raptor/protocol/openid-connect/certs}
+      - OIDC_ISSUER_URI=${OIDC_ISSUER_URI:-http://localhost:9090/realms/raptor}
       - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-raptor-client}
       - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:4200}
+      
+      # CORS Configuration
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:4200,http://localhost:3000}
       
       # Database Configuration (SQL Server)
       - SPRING_DATASOURCE_URL=jdbc:sqlserver://database:1433;databaseName=raptordb;encrypt=true;trustServerCertificate=true

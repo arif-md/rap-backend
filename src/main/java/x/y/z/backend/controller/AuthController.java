@@ -15,6 +15,7 @@ import x.y.z.backend.security.JwtTokenUtil;
 import x.y.z.backend.service.JwtTokenService;
 import x.y.z.backend.service.UserService;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -67,23 +68,31 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> login() {
         Map<String, String> response = new HashMap<>();
         response.put("message", "Redirecting to OIDC provider...");
-        response.put("oauth2LoginUrl", "/oauth2/authorization/oidc-provider");
+        response.put("authorizationUrl", "/oauth2/authorization/oidc-provider");
         return ResponseEntity.ok(response);
     }
 
     /**
      * GET /auth/callback
-     * Handles OIDC callback after successful authentication.
-     * Creates or updates user, generates JWT tokens, sets httpOnly cookies.
      * 
-     * @param oidcUser Authenticated OIDC user from provider
-     * @param response HTTP response to set cookies
-     * @return Redirect to frontend with success
+     * NOTE: This endpoint is no longer used. Spring Security's OAuth2 login
+     * handles the callback automatically at /login/oauth2/code/{registrationId}.
+     * After successful authentication, OAuth2AuthenticationSuccessHandler is invoked
+     * to create JWT tokens and redirect to the frontend.
+     * 
+     * This endpoint is kept for backwards compatibility but should not be called directly.
      */
     @GetMapping("/callback")
-    public ResponseEntity<Map<String, Object>> handleOidcCallback(
+    @Deprecated
+    public void handleOidcCallback(
             @AuthenticationPrincipal OidcUser oidcUser,
-            HttpServletResponse response) {
+            HttpServletResponse response) throws IOException {
+
+        // This should not be reached - Spring Security handles OAuth2 callback automatically
+        if (oidcUser == null) {
+            response.sendRedirect(frontendUrl + "/sign-in?error=no_authentication");
+            return;
+        }
 
         try {
             // Create or update user from OIDC
@@ -108,24 +117,12 @@ public class AuthController {
             );
             response.addCookie(refreshTokenCookie);
 
-            // Return success response with user info
-            Map<String, Object> responseBody = new HashMap<>();
-            responseBody.put("success", true);
-            responseBody.put("message", "Authentication successful");
-            responseBody.put("user", Map.of(
-                    "id", user.getId().toString(),
-                    "email", user.getEmail(),
-                    "fullName", user.getFullName()
-            ));
-            responseBody.put("redirectUrl", frontendUrl + "/dashboard");
-
-            return ResponseEntity.ok(responseBody);
+            // Redirect browser to frontend dashboard
+            response.sendRedirect(frontendUrl + "/dashboard");
 
         } catch (Exception e) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("message", "Authentication failed: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            // On error, redirect to frontend login with error parameter
+            response.sendRedirect(frontendUrl + "/sign-in?error=" + e.getMessage());
         }
     }
 
@@ -300,19 +297,18 @@ public class AuthController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
             }
 
-            // Return user info
-            Map<String, Object> responseBody = new HashMap<>();
-            responseBody.put("success", true);
-            responseBody.put("user", Map.of(
-                    "id", user.getId().toString(),
-                    "email", user.getEmail(),
-                    "fullName", user.getFullName(),
-                    "roles", roles,
-                    "isActive", user.getIsActive(),
-                    "lastLoginAt", user.getLastLoginAt()
-            ));
+            // Return user info directly (not wrapped in "user" field)
+            Map<String, Object> userInfo = new HashMap<>();
+            userInfo.put("id", user.getId().toString());
+            userInfo.put("email", user.getEmail());
+            userInfo.put("fullName", user.getFullName());
+            userInfo.put("oidcSubject", user.getOidcSubject());
+            userInfo.put("roles", roles);
+            userInfo.put("isActive", user.getIsActive());
+            userInfo.put("lastLoginAt", user.getLastLoginAt());
+            userInfo.put("createdAt", user.getCreatedAt());
 
-            return ResponseEntity.ok(responseBody);
+            return ResponseEntity.ok(userInfo);
 
         } catch (Exception e) {
             Map<String, Object> errorResponse = new HashMap<>();
@@ -346,9 +342,33 @@ public class AuthController {
             boolean accessTokenValid = accessToken != null && jwtTokenService.validateAccessToken(accessToken);
 
             if (accessTokenValid) {
+                // Extract user info from token
+                UUID userId = jwtTokenUtil.getUserIdFromToken(accessToken);
+                String email = jwtTokenUtil.getEmailFromToken(accessToken);
+                var roles = jwtTokenUtil.getRolesFromToken(accessToken);
+
+                // Get full user details from database
+                User user = userService.findById(userId);
+
+                if (user == null) {
+                    response.put("authenticated", false);
+                    response.put("error", "User not found");
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+                }
+
                 response.put("authenticated", true);
                 response.put("accessTokenValid", true);
                 response.put("requiresReauth", false);
+                response.put("user", Map.of(
+                        "id", user.getId().toString(),
+                        "email", user.getEmail(),
+                        "fullName", user.getFullName(),
+                        "oidcSubject", user.getOidcSubject(),
+                        "roles", roles,
+                        "isActive", user.getIsActive(),
+                        "lastLoginAt", user.getLastLoginAt(),
+                        "createdAt", user.getCreatedAt()
+                ));
                 return ResponseEntity.ok(response);
             }
 

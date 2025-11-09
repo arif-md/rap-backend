@@ -12,10 +12,20 @@ public class RefreshToken {
     private UUID id;
     private UUID userId;
     private String tokenHash;        // SHA-256 hash of the refresh token (for security)
+    
+    // Token Lifecycle
+    private LocalDateTime issuedAt;
     private LocalDateTime expiresAt;
+    private LocalDateTime lastUsedAt;
+    
+    // Security Metadata
+    private String ipAddress;
+    private String userAgent;
+    
+    // Revocation
     private Boolean isRevoked;
-    private LocalDateTime createdAt;
     private LocalDateTime revokedAt;
+    private String revokedReason;
 
     // Default constructor
     public RefreshToken() {
@@ -70,12 +80,44 @@ public class RefreshToken {
         this.isRevoked = isRevoked;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
+    public LocalDateTime getIssuedAt() {
+        return issuedAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
+    public void setIssuedAt(LocalDateTime issuedAt) {
+        this.issuedAt = issuedAt;
+    }
+
+    public LocalDateTime getLastUsedAt() {
+        return lastUsedAt;
+    }
+
+    public void setLastUsedAt(LocalDateTime lastUsedAt) {
+        this.lastUsedAt = lastUsedAt;
+    }
+
+    public String getIpAddress() {
+        return ipAddress;
+    }
+
+    public void setIpAddress(String ipAddress) {
+        this.ipAddress = ipAddress;
+    }
+
+    public String getUserAgent() {
+        return userAgent;
+    }
+
+    public void setUserAgent(String userAgent) {
+        this.userAgent = userAgent;
+    }
+
+    public String getRevokedReason() {
+        return revokedReason;
+    }
+
+    public void setRevokedReason(String revokedReason) {
+        this.revokedReason = revokedReason;
     }
 
     public LocalDateTime getRevokedAt() {
@@ -92,10 +134,14 @@ public class RefreshToken {
                 "id=" + id +
                 ", userId=" + userId +
                 ", tokenHash='" + tokenHash + '\'' +
+                ", issuedAt=" + issuedAt +
                 ", expiresAt=" + expiresAt +
+                ", lastUsedAt=" + lastUsedAt +
+                ", ipAddress='" + ipAddress + '\'' +
+                ", userAgent='" + userAgent + '\'' +
                 ", isRevoked=" + isRevoked +
-                ", createdAt=" + createdAt +
                 ", revokedAt=" + revokedAt +
+                ", revokedReason='" + revokedReason + '\'' +
                 '}';
     }
 }

@@ -18,24 +18,25 @@
 
     <!-- Insert User -->
     <insert id="insert" parameterType="x.y.z.backend.domain.model.User">
+        <selectKey keyProperty="id" resultType="java.util.UUID" order="BEFORE">
+            SELECT NEWID()
+        </selectKey>
+        
         INSERT INTO users (
             id,
             oidc_subject,
             email,
             full_name,
             is_active,
-            created_at,
-            updated_at,
             last_login_at
-        ) VALUES (
-            NEWID(),
-            #{oidcSubject},
-            #{email},
-            #{fullName},
-            #{isActive},
-            GETUTCDATE(),
-            GETUTCDATE(),
-            #{lastLoginAt}
+        )
+        VALUES (
+            CAST(#{id, jdbcType=VARCHAR} AS UNIQUEIDENTIFIER),
+            #{oidcSubject, jdbcType=VARCHAR},
+            #{email, jdbcType=VARCHAR},
+            #{fullName, jdbcType=VARCHAR},
+            #{isActive, jdbcType=BIT},
+            #{lastLoginAt, jdbcType=TIMESTAMP}
         )
     </insert>
 

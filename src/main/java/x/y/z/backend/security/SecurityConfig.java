@@ -32,12 +32,19 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final OAuth2AuthenticationSuccessHandler oauth2SuccessHandler;
+    private final CustomOidcUserService customOidcUserService;
     
     @Value("${cors.allowed-origins}")
     private String[] allowedOrigins;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            OAuth2AuthenticationSuccessHandler oauth2SuccessHandler,
+            CustomOidcUserService customOidcUserService) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.oauth2SuccessHandler = oauth2SuccessHandler;
+        this.customOidcUserService = customOidcUserService;
     }
 
     @Bean
@@ -49,9 +56,11 @@ public class SecurityConfig {
             // CSRF - Disabled for stateless JWT (enabled for cookies would require CSRF tokens)
             .csrf(csrf -> csrf.disable())
             
-            // Session management - Stateless (no server-side sessions)
+            // Session management - IF_REQUIRED for OAuth2 login flow
+            // OAuth2 needs sessions to store authorization state during callback
+            // After callback, JWT tokens are used (stateless)
             .sessionManagement(session -> 
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
             )
             
             // Authorization rules
@@ -73,7 +82,10 @@ public class SecurityConfig {
             // OAuth2 Login configuration
             .oauth2Login(oauth2 -> oauth2
                 .loginPage("/auth/login")
-                .defaultSuccessUrl("/auth/callback", true)
+                .userInfoEndpoint(userInfo -> userInfo
+                    .oidcUserService(customOidcUserService)  // Use custom OIDC user service
+                )
+                .successHandler(oauth2SuccessHandler)  // Use custom success handler
                 .failureUrl("/auth/login?error=true")
             )
             

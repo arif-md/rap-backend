@@ -9,30 +9,40 @@
         <id property="id" column="id" javaType="java.util.UUID"/>
         <result property="userId" column="user_id" javaType="java.util.UUID"/>
         <result property="tokenHash" column="token_hash"/>
+        <result property="issuedAt" column="issued_at"/>
         <result property="expiresAt" column="expires_at"/>
+        <result property="lastUsedAt" column="last_used_at"/>
+        <result property="ipAddress" column="ip_address"/>
+        <result property="userAgent" column="user_agent"/>
         <result property="isRevoked" column="is_revoked"/>
-        <result property="createdAt" column="created_at"/>
         <result property="revokedAt" column="revoked_at"/>
+        <result property="revokedReason" column="revoked_reason"/>
     </resultMap>
 
     <!-- Insert RefreshToken -->
     <insert id="insert" parameterType="x.y.z.backend.domain.model.RefreshToken">
+        <selectKey keyProperty="id" resultType="java.util.UUID" order="BEFORE">
+            SELECT NEWID()
+        </selectKey>
+        
         INSERT INTO refresh_tokens (
             id,
             user_id,
             token_hash,
             expires_at,
             is_revoked,
-            created_at,
+            ip_address,
+            user_agent,
             revoked_at
         ) VALUES (
-            NEWID(),
-            #{userId},
-            #{tokenHash},
-            #{expiresAt},
-            #{isRevoked},
-            GETUTCDATE(),
-            #{revokedAt}
+            CAST(#{id, jdbcType=VARCHAR} AS UNIQUEIDENTIFIER),
+            CAST(#{userId, jdbcType=VARCHAR} AS UNIQUEIDENTIFIER),
+            #{tokenHash, jdbcType=VARCHAR},
+            #{expiresAt, jdbcType=TIMESTAMP},
+            #{isRevoked, jdbcType=BIT},
+            #{ipAddress, jdbcType=VARCHAR},
+            #{userAgent, jdbcType=VARCHAR},
+            #{revokedAt, jdbcType=TIMESTAMP}
         )
     </insert>
 
@@ -54,14 +64,14 @@
         WHERE user_id = #{userId}
           AND is_revoked = 0
           AND expires_at > GETUTCDATE()
-        ORDER BY created_at DESC
+        ORDER BY issued_at DESC
     </select>
 
     <!-- Find All RefreshTokens by User ID -->
     <select id="findByUserId" resultMap="RefreshTokenResultMap">
         SELECT * FROM refresh_tokens
         WHERE user_id = #{userId}
-        ORDER BY created_at DESC
+        ORDER BY issued_at DESC
     </select>
 
     <!-- Revoke RefreshToken -->
