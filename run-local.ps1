@@ -60,6 +60,26 @@ $EnvFile = Join-Path $BackendDir ".env"
 $PidFile = Join-Path $BackendDir ".backend-local.pid"
 $LogFile = Join-Path $BackendDir "backend-local.log"
 
+# Default port (will be overridden from .env file)
+$AppPort = 8080
+
+# Function to load environment variables and get port
+function Get-AppPort {
+    $port = 8080  # Default
+    
+    if (Test-Path $EnvFile) {
+        $content = Get-Content $EnvFile
+        foreach ($line in $content) {
+            if ($line -match '^APP_PORT=(.*)$') {
+                $port = [int]$matches[1].Trim()
+                break
+            }
+        }
+    }
+    
+    return $port
+}
+
 # Function to show detailed help
 function Show-Help {
     Write-Host ""
@@ -160,20 +180,85 @@ function Write-ErrorMsg {
     Write-Host "✗ $Message" -ForegroundColor Red
 }
 
+# Function to check if port is in use
+function Test-PortInUse {
+    param([int]$Port)
+    
+    try {
+        $connection = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
+        return $connection -ne $null
+    } catch {
+        return $false
+    }
+}
+
+# Function to find and stop Java processes on port 8080
+function Stop-JavaOnPort {
+    param([int]$Port = 8080)
+    
+    $processes = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | 
+                 Select-Object -ExpandProperty OwningProcess -Unique
+    
+    if ($processes) {
+        foreach ($procId in $processes) {
+            try {
+                $process = Get-Process -Id $procId -ErrorAction SilentlyContinue
+                if ($process) {
+                    Write-InfoMsg "Found process on port ${Port}: $($process.Name) (PID: $procId)"
+                    Stop-Process -Id $procId -Force -ErrorAction Stop
+                    Write-SuccessMsg "Stopped process $($process.Name) (PID: $procId)"
+                }
+            } catch {
+                $errorMsg = $_.Exception.Message
+                Write-ErrorMsg "Failed to stop process ${procId}: $errorMsg"
+            }
+        }
+        
+        # Wait for port to be released
+        Start-Sleep -Seconds 2
+        
+        if (Test-PortInUse -Port $Port) {
+            Write-ErrorMsg "Port $Port is still in use after stopping processes"
+            return $false
+        } else {
+            Write-SuccessMsg "Port $Port is now available"
+            return $true
+        }
+    }
+    
+    return $true
+}
+
 # Function to stop running backend
 function Stop-Backend {
+    $stopped = $false
+    $port = Get-AppPort
+    
+    # Check PID file first (for background processes)
     if (Test-Path $PidFile) {
         $BackendPid = Get-Content $PidFile
-        Write-InfoMsg "Stopping backend process (PID: $BackendPid)..."
+        Write-InfoMsg "Stopping backend process from PID file (PID: $BackendPid)..."
         
         try {
             Stop-Process -Id $BackendPid -Force -ErrorAction SilentlyContinue
             Remove-Item $PidFile -ErrorAction SilentlyContinue
-            Write-SuccessMsg "Backend stopped"
+            Write-SuccessMsg "Backend stopped (from PID file)"
+            $stopped = $true
         } catch {
-            Write-ErrorMsg "Failed to stop process: $_"
+            $errorMsg = $_.Exception.Message
+            Write-ErrorMsg "Failed to stop process from PID file: $errorMsg"
         }
-    } else {
+    }
+    
+    # Check if port is in use (for foreground processes or orphaned processes)
+    if (Test-PortInUse -Port $port) {
+        Write-InfoMsg "Port $port is in use, checking for Java processes..."
+        if (Stop-JavaOnPort -Port $port) {
+            $stopped = $true
+        }
+    }
+    
+    if (-not $stopped) {
         Write-InfoMsg "No running backend process found"
     }
 }
@@ -242,6 +327,9 @@ function Run-Background {
 
     Write-SuccessMsg "URLs configured for local execution"
 
+    # Get configured port
+    $port = if ($env:APP_PORT) { [int]$env:APP_PORT } else { 8080 }
+
     # Display key configuration
     Write-Host ""
     Write-Host "Configuration Summary:" -ForegroundColor Cyan
@@ -249,7 +337,20 @@ function Run-Background {
     Write-Host "  Keycloak:     localhost:9090 (realm: raptor)" -ForegroundColor White
     Write-Host "  Frontend URL: $env:FRONTEND_URL" -ForegroundColor White
     Write-Host "  OIDC Client:  $env:OIDC_CLIENT_ID" -ForegroundColor White
+    Write-Host "  Backend Port: $port" -ForegroundColor White
     Write-Host ""
+
+    # Check if port is already in use
+    if (Test-PortInUse -Port $port) {
+        Write-ErrorMsg "Port $port is already in use!"
+        Write-InfoMsg "Attempting to stop existing process..."
+        
+        if (-not (Stop-JavaOnPort -Port $port)) {
+            Write-ErrorMsg "Failed to free port ${port}. Please manually stop the process using it."
+            Write-InfoMsg "You can find the process with: Get-NetTCPConnection -LocalPort $port"
+            exit 1
+        }
+    }
 
     # Stop any existing backend process
     if (Test-Path $PidFile) {
@@ -295,12 +396,13 @@ function Run-Background {
         if (Get-Process -Id $process.Id -ErrorAction SilentlyContinue) {
             # Test health endpoint
             try {
-                $response = Invoke-WebRequest -Uri "http://localhost:8080/actuator/health" -Method GET -TimeoutSec 5 -ErrorAction Stop
+                $healthUrl = "http://localhost:${port}/actuator/health"
+                $response = Invoke-WebRequest -Uri $healthUrl -Method GET -TimeoutSec 5 -ErrorAction Stop
                 $health = $response.Content | ConvertFrom-Json
                 
                 if ($health.status -eq "UP") {
                     Write-SuccessMsg "Backend is healthy and ready!"
-                    Write-InfoMsg "Health check: http://localhost:8080/actuator/health"
+                    Write-InfoMsg "Health check: $healthUrl"
                 } else {
                     Write-ErrorMsg "Backend is running but not healthy: $($health.status)"
                     Write-InfoMsg "Check logs: .\run-local.ps1 Logs"
@@ -325,9 +427,9 @@ function Run-Background {
     Write-Host "==================================================" -ForegroundColor Green
     Write-Host ""
     Write-Host "Test URLs:" -ForegroundColor Cyan
-    Write-Host "  Health:     http://localhost:8080/actuator/health" -ForegroundColor White
-    Write-Host "  Auth Login: http://localhost:8080/auth/login" -ForegroundColor White
-    Write-Host "  API:        http://localhost:8080/api/applications" -ForegroundColor White
+    Write-Host "  Health:     http://localhost:${port}/actuator/health" -ForegroundColor White
+    Write-Host "  Auth Login: http://localhost:${port}/auth/login" -ForegroundColor White
+    Write-Host "  API:        http://localhost:${port}/api/applications" -ForegroundColor White
     Write-Host ""
 }
 
@@ -385,6 +487,9 @@ function Start-Foreground {
 
     Write-SuccessMsg "URLs configured for local execution"
 
+    # Get configured port
+    $port = if ($env:APP_PORT) { [int]$env:APP_PORT } else { 8080 }
+
     # Display key configuration
     Write-Host ""
     Write-Host "Configuration Summary:" -ForegroundColor Cyan
@@ -392,7 +497,20 @@ function Start-Foreground {
     Write-Host "  Keycloak:     localhost:9090 (realm: raptor)" -ForegroundColor White
     Write-Host "  Frontend URL: $env:FRONTEND_URL" -ForegroundColor White
     Write-Host "  OIDC Client:  $env:OIDC_CLIENT_ID" -ForegroundColor White
+    Write-Host "  Backend Port: $port" -ForegroundColor White
     Write-Host ""
+
+    # Check if port is already in use
+    if (Test-PortInUse -Port $port) {
+        Write-ErrorMsg "Port $port is already in use!"
+        Write-InfoMsg "Attempting to stop existing process..."
+        
+        if (-not (Stop-JavaOnPort -Port $port)) {
+            Write-ErrorMsg "Failed to free port ${port}. Please manually stop the process using it."
+            Write-InfoMsg "You can find the process with: Get-NetTCPConnection -LocalPort $port"
+            exit 1
+        }
+    }
 
     # Stop any existing backend process
     if (Test-Path $PidFile) {
@@ -419,20 +537,20 @@ function Start-Foreground {
         Write-Host ""
         
         & .\mvnw.cmd spring-boot:run
+        
+        # This line only executes if Maven exits (Ctrl+C or error)
+        $exitCode = $LASTEXITCODE
+        
+        if ($exitCode -eq 0) {
+            Write-Host ""
+            Write-InfoMsg "Backend stopped gracefully"
+        } else {
+            Write-Host ""
+            Write-ErrorMsg "Backend exited with error code: $exitCode"
+        }
     } finally {
         Pop-Location
     }
-
-    Write-Host ""
-    Write-Host "==================================================" -ForegroundColor Green
-    Write-Host "Backend is running!" -ForegroundColor Green
-    Write-Host "==================================================" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "Test URLs:" -ForegroundColor Cyan
-    Write-Host "  Health:     http://localhost:8080/actuator/health" -ForegroundColor White
-    Write-Host "  Auth Login: http://localhost:8080/auth/login" -ForegroundColor White
-    Write-Host "  API:        http://localhost:8080/api/applications" -ForegroundColor White
-    Write-Host ""
 }
 
 # Main command router
