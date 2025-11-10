@@ -48,19 +48,21 @@ make dev-full            # Start all services
 **Run Backend Locally:**
 ```powershell
 # Foreground mode (default) - hot reload enabled
-.\run-local.ps1          
+.\run-local.ps1
+# OR explicitly
+.\run-local.ps1 Start
 
 # Background mode - manual reload required
-.\run-local.ps1 -Background
+.\run-local.ps1 Background
 
 # View logs (background mode only)
-.\run-local.ps1 -Logs
+.\run-local.ps1 Logs
 
 # Stop backend
-.\run-local.ps1 -Stop
+.\run-local.ps1 Stop
 
 # Show help
-.\run-local.ps1 -Help
+.\run-local.ps1 Help
 ```
 
 **Hot Reload Behavior:**
@@ -161,13 +163,13 @@ make dev-full            # Start all services
 | Task | Command | Description |
 |------|---------|-------------|
 | **Run Backend** |
-| Start in foreground (default) | `.\run-local.ps1` | Hot reload enabled, see logs directly |
-| Start in background | `.\run-local.ps1 -Background` | Hidden process, logs to file |
+| Start in foreground (default) | `.\run-local.ps1` or `.\run-local.ps1 Start` | Hot reload enabled, see logs directly |
+| Start in background | `.\run-local.ps1 Background` | Hidden process, logs to file |
 | **Monitoring** |
-| View logs | `.\run-local.ps1 -Logs` | Show live logs (background mode) |
-| Stop backend | `.\run-local.ps1 -Stop` | Terminate running process |
+| View logs | `.\run-local.ps1 Logs` | Show live logs (background mode) |
+| Stop backend | `.\run-local.ps1 Stop` | Terminate running process |
 | **Help** |
-| Show help | `.\run-local.ps1 -Help` | Display all commands and usage |
+| Show help | `.\run-local.ps1 Help` | Display all commands and usage |
 
 **Key Differences:**
 - **`dev.ps1`**: Manages Docker containers (full stack or partial)
@@ -321,11 +323,11 @@ Runs Spring Boot backend locally via Maven (not in Docker). Supports hot reload 
 - **VS Code Agent compatible**: Staged changes only deploy when accepted
 
 **Common Commands:**
-- `.\run-local.ps1` - Start in foreground (hot reload)
-- `.\run-local.ps1 -Background` - Start in background
-- `.\run-local.ps1 -Stop` - Stop backend
-- `.\run-local.ps1 -Logs` - View logs
-- `.\run-local.ps1 -Help` - Show detailed help
+- `.\run-local.ps1` or `.\run-local.ps1 Start` - Start in foreground (hot reload)
+- `.\run-local.ps1 Background` - Start in background
+- `.\run-local.ps1 Stop` - Stop backend
+- `.\run-local.ps1 Logs` - View logs
+- `.\run-local.ps1 Help` - Show detailed help
 
 **When to Use:**
 - Use `dev.ps1` when you need full stack or multiple services

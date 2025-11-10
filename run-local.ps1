@@ -5,31 +5,34 @@
     Run Spring Boot backend locally with Maven using the same environment as Docker container.
 
 .DESCRIPTION
-    This script:
-    1. Loads environment variables from .env file (source of truth)
-    2. Adjusts URLs for local execution (localhost instead of host.docker.internal)
-    3. Starts Spring Boot with Maven Wrapper (foreground by default, or background with -Background)
-    4. Provides commands to check logs and stop the process
-    5. Supports hot code deployment via Spring Boot DevTools (changes auto-reload in foreground mode)
+    This script provides commands to run the backend locally via Maven (not Docker).
+    Supports both foreground mode (with hot reload) and background mode.
+    
+    Commands:
+    - Start (default): Run backend in foreground with hot reload
+    - Background: Run backend in background mode
+    - Stop: Stop the running backend process
+    - Logs: Show live logs from background process
+    - Help: Show detailed help information
 
 .EXAMPLE
     .\run-local.ps1
     # Starts backend in foreground (default) - supports hot reload
 
 .EXAMPLE
-    .\run-local.ps1 -Background
+    .\run-local.ps1 Background
     # Starts backend in background mode
 
 .EXAMPLE
-    .\run-local.ps1 -Stop
+    .\run-local.ps1 Stop
     # Stops the running backend process
 
 .EXAMPLE
-    .\run-local.ps1 -Logs
+    .\run-local.ps1 Logs
     # Shows live logs from background process
 
 .EXAMPLE
-    .\run-local.ps1 -Help
+    .\run-local.ps1 Help
     # Shows detailed help information
 
 .NOTES
@@ -40,23 +43,14 @@
     - Keycloak container running on localhost:9090
     
     Hot Code Deployment:
-    - Foreground mode: Changes are auto-detected and reloaded (via Spring Boot DevTools)
+    - Start (foreground): Changes are auto-detected and reloaded (via Spring Boot DevTools)
     - Background mode: Changes require manual restart
     - In VS Code Agent mode: Changes are NOT deployed until you accept them
 #>
 
 param(
-    [Parameter(Mandatory=$false)]
-    [switch]$Background,
-    
-    [Parameter(Mandatory=$false)]
-    [switch]$Stop,
-    
-    [Parameter(Mandatory=$false)]
-    [switch]$Logs,
-    
-    [Parameter(Mandatory=$false)]
-    [switch]$Help
+    [Parameter(Position=0)]
+    [string]$Command = "Start"
 )
 
 $ErrorActionPreference = "Stop"
@@ -70,15 +64,15 @@ $LogFile = Join-Path $BackendDir "backend-local.log"
 function Show-Help {
     Write-Host ""
     Write-Host "==================================================" -ForegroundColor Yellow
-    Write-Host "RAP Backend - Local Development Script" -ForegroundColor Yellow
+    Write-Host "RAP Backend - Local Maven Development Script" -ForegroundColor Yellow
     Write-Host "==================================================" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "USAGE:" -ForegroundColor Cyan
     Write-Host "  .\run-local.ps1 [COMMAND]" -ForegroundColor White
     Write-Host ""
     Write-Host "COMMANDS:" -ForegroundColor Cyan
-    Write-Host "  (none)          " -NoNewline -ForegroundColor White
-    Write-Host "Start backend in FOREGROUND mode (default)" -ForegroundColor Gray
+    Write-Host "  Start (default) " -NoNewline -ForegroundColor White
+    Write-Host "Run backend in FOREGROUND mode" -ForegroundColor Gray
     Write-Host "                  " -NoNewline
     Write-Host "• Hot reload enabled - code changes auto-detect" -ForegroundColor DarkGray
     Write-Host "                  " -NoNewline
@@ -86,8 +80,8 @@ function Show-Help {
     Write-Host "                  " -NoNewline
     Write-Host "• Best for active development" -ForegroundColor DarkGray
     Write-Host ""
-    Write-Host "  -Background     " -NoNewline -ForegroundColor White
-    Write-Host "Start backend in BACKGROUND mode" -ForegroundColor Gray
+    Write-Host "  Background      " -NoNewline -ForegroundColor White
+    Write-Host "Run backend in BACKGROUND mode" -ForegroundColor Gray
     Write-Host "                  " -NoNewline
     Write-Host "• Runs as hidden process" -ForegroundColor DarkGray
     Write-Host "                  " -NoNewline
@@ -95,33 +89,35 @@ function Show-Help {
     Write-Host "                  " -NoNewline
     Write-Host "• Changes require manual restart" -ForegroundColor DarkGray
     Write-Host ""
-    Write-Host "  -Stop           " -NoNewline -ForegroundColor White
+    Write-Host "  Stop            " -NoNewline -ForegroundColor White
     Write-Host "Stop the running backend process" -ForegroundColor Gray
     Write-Host "                  " -NoNewline
     Write-Host "• Terminates background process if running" -ForegroundColor DarkGray
     Write-Host ""
-    Write-Host "  -Logs           " -NoNewline -ForegroundColor White
+    Write-Host "  Logs            " -NoNewline -ForegroundColor White
     Write-Host "Show live logs from background process" -ForegroundColor Gray
     Write-Host "                  " -NoNewline
     Write-Host "• Follows log file in real-time" -ForegroundColor DarkGray
     Write-Host "                  " -NoNewline
     Write-Host "• Press Ctrl+C to exit log view" -ForegroundColor DarkGray
     Write-Host ""
-    Write-Host "  -Help           " -NoNewline -ForegroundColor White
+    Write-Host "  Help            " -NoNewline -ForegroundColor White
     Write-Host "Show this help message" -ForegroundColor Gray
     Write-Host ""
     Write-Host "EXAMPLES:" -ForegroundColor Cyan
     Write-Host "  .\run-local.ps1              " -NoNewline -ForegroundColor Yellow
     Write-Host "# Start in foreground (default)" -ForegroundColor DarkGray
-    Write-Host "  .\run-local.ps1 -Background  " -NoNewline -ForegroundColor Yellow
+    Write-Host "  .\run-local.ps1 Start        " -NoNewline -ForegroundColor Yellow
+    Write-Host "# Start in foreground (explicit)" -ForegroundColor DarkGray
+    Write-Host "  .\run-local.ps1 Background   " -NoNewline -ForegroundColor Yellow
     Write-Host "# Start in background" -ForegroundColor DarkGray
-    Write-Host "  .\run-local.ps1 -Logs        " -NoNewline -ForegroundColor Yellow
+    Write-Host "  .\run-local.ps1 Logs         " -NoNewline -ForegroundColor Yellow
     Write-Host "# View logs" -ForegroundColor DarkGray
-    Write-Host "  .\run-local.ps1 -Stop        " -NoNewline -ForegroundColor Yellow
+    Write-Host "  .\run-local.ps1 Stop         " -NoNewline -ForegroundColor Yellow
     Write-Host "# Stop backend" -ForegroundColor DarkGray
     Write-Host ""
     Write-Host "HOT CODE DEPLOYMENT:" -ForegroundColor Cyan
-    Write-Host "  • FOREGROUND mode:" -ForegroundColor White
+    Write-Host "  • START mode (foreground):" -ForegroundColor White
     Write-Host "    - Spring Boot DevTools auto-detects Java class changes" -ForegroundColor Gray
     Write-Host "    - Application restarts automatically on save" -ForegroundColor Gray
     Write-Host "    - Fast reload (seconds, not full restart)" -ForegroundColor Gray
@@ -146,7 +142,6 @@ function Show-Help {
     Write-Host "  • Logs saved to:  backend-local.log" -ForegroundColor White
     Write-Host "  • Health check:   http://localhost:8080/actuator/health" -ForegroundColor White
     Write-Host ""
-    exit 0
 }
 
 # Color output functions
@@ -193,94 +188,79 @@ function Show-Logs {
     }
 }
 
-# Handle help flag first
-if ($Help) {
-    Show-Help
-}
+# Function to run in background
+function Run-Background {
+    Write-Host ""
+    Write-Host "==================================================" -ForegroundColor Yellow
+    Write-Host "RAP Backend - Local Development with Maven" -ForegroundColor Yellow
+    Write-Host "==================================================" -ForegroundColor Yellow
+    Write-Host ""
+    Write-InfoMsg "Run mode: BACKGROUND (manual reload)"
+    Write-Host ""
 
-# Handle stop and logs flags
-if ($Stop) {
-    Stop-Backend
-    exit 0
-}
-
-if ($Logs) {
-    Show-Logs
-    exit 0
-}
-
-Write-Host ""
-Write-Host "==================================================" -ForegroundColor Yellow
-Write-Host "RAP Backend - Local Development with Maven" -ForegroundColor Yellow
-Write-Host "==================================================" -ForegroundColor Yellow
-Write-Host ""
-Write-InfoMsg "Run mode: $(if ($Background) { 'BACKGROUND (manual reload)' } else { 'FOREGROUND (hot reload enabled)' })"
-Write-Host ""
-
-# Check if Java is installed
-Write-InfoMsg "Checking Java installation..."
-try {
-    $javaVersion = java -version 2>&1 | Select-Object -First 1
-    Write-SuccessMsg "Java found: $javaVersion"
-} catch {
-    Write-ErrorMsg "Java is not installed or not in PATH"
-    Write-InfoMsg "Install Java 21: winget install Microsoft.OpenJDK.21"
-    exit 1
-}
-
-# Check if .env file exists
-if (-not (Test-Path $EnvFile)) {
-    Write-ErrorMsg ".env file not found: $EnvFile"
-    Write-InfoMsg "Run './dev.ps1 Setup' to create .env from .env.example"
-    exit 1
-}
-
-Write-InfoMsg "Loading environment variables from .env..."
-
-# Load all environment variables from .env file
-Get-Content $EnvFile | ForEach-Object {
-    if ($_ -match '^([^#=]+)=(.*)$') {
-        $key = $matches[1].Trim()
-        $value = $matches[2].Trim()
-        Set-Item -Path "env:$key" -Value $value
+    # Check if Java is installed
+    Write-InfoMsg "Checking Java installation..."
+    try {
+        $javaVersion = java -version 2>&1 | Select-Object -First 1
+        Write-SuccessMsg "Java found: $javaVersion"
+    } catch {
+        Write-ErrorMsg "Java is not installed or not in PATH"
+        Write-InfoMsg "Install Java 21: winget install Microsoft.OpenJDK.21"
+        exit 1
     }
-}
 
-Write-SuccessMsg "Environment variables loaded from .env"
+    # Check if .env file exists
+    if (-not (Test-Path $EnvFile)) {
+        Write-ErrorMsg ".env file not found: $EnvFile"
+        Write-InfoMsg "Run './dev.ps1 Setup' to create .env from .env.example"
+        exit 1
+    }
 
-# Override Docker-specific URLs for local execution
-Write-InfoMsg "Adjusting URLs for local execution..."
+    Write-InfoMsg "Loading environment variables from .env..."
 
-# SQL Server connection (local: localhost, container: database or host.docker.internal)
-$env:AZURE_SQL_CONNECTIONSTRING = "jdbc:sqlserver://localhost:1433;databaseName=raptordb;user=$env:DB_USERNAME;password=$env:DB_PASSWORD;encrypt=true;trustServerCertificate=true"
+    # Load all environment variables from .env file
+    Get-Content $EnvFile | ForEach-Object {
+        if ($_ -match '^([^#=]+)=(.*)$') {
+            $key = $matches[1].Trim()
+            $value = $matches[2].Trim()
+            Set-Item -Path "env:$key" -Value $value
+        }
+    }
 
-# Keycloak URLs (local: localhost, container: host.docker.internal)
-$env:OIDC_TOKEN_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/token"
-$env:OIDC_USER_INFO_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/userinfo"
-$env:OIDC_JWK_SET_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/certs"
+    Write-SuccessMsg "Environment variables loaded from .env"
 
-Write-SuccessMsg "URLs configured for local execution"
+    # Override Docker-specific URLs for local execution
+    Write-InfoMsg "Adjusting URLs for local execution..."
 
-# Display key configuration
-Write-Host ""
-Write-Host "Configuration Summary:" -ForegroundColor Cyan
-Write-Host "  Database:     localhost:1433 (raptordb)" -ForegroundColor White
-Write-Host "  Keycloak:     localhost:9090 (realm: raptor)" -ForegroundColor White
-Write-Host "  Frontend URL: $env:FRONTEND_URL" -ForegroundColor White
-Write-Host "  OIDC Client:  $env:OIDC_CLIENT_ID" -ForegroundColor White
-Write-Host ""
+    # SQL Server connection (local: localhost, container: database or host.docker.internal)
+    $env:AZURE_SQL_CONNECTIONSTRING = "jdbc:sqlserver://localhost:1433;databaseName=raptordb;user=$env:DB_USERNAME;password=$env:DB_PASSWORD;encrypt=true;trustServerCertificate=true"
 
-# Stop any existing backend process
-if (Test-Path $PidFile) {
-    Write-InfoMsg "Stopping existing backend process..."
-    Stop-Backend
-}
+    # Keycloak URLs (local: localhost, container: host.docker.internal)
+    $env:OIDC_TOKEN_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/token"
+    $env:OIDC_USER_INFO_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/userinfo"
+    $env:OIDC_JWK_SET_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/certs"
 
-# Change to backend directory
-Push-Location $BackendDir
+    Write-SuccessMsg "URLs configured for local execution"
 
-try {
-    if ($Background) {
+    # Display key configuration
+    Write-Host ""
+    Write-Host "Configuration Summary:" -ForegroundColor Cyan
+    Write-Host "  Database:     localhost:1433 (raptordb)" -ForegroundColor White
+    Write-Host "  Keycloak:     localhost:9090 (realm: raptor)" -ForegroundColor White
+    Write-Host "  Frontend URL: $env:FRONTEND_URL" -ForegroundColor White
+    Write-Host "  OIDC Client:  $env:OIDC_CLIENT_ID" -ForegroundColor White
+    Write-Host ""
+
+    # Stop any existing backend process
+    if (Test-Path $PidFile) {
+        Write-InfoMsg "Stopping existing backend process..."
+        Stop-Backend
+    }
+
+    # Change to backend directory
+    Push-Location $BackendDir
+
+    try {
         # Run in background
         Write-InfoMsg "Starting backend in background..."
         Write-Host ""
@@ -301,9 +281,9 @@ try {
         Write-InfoMsg "Log file: $LogFile"
         Write-Host ""
         Write-Host "Useful commands:" -ForegroundColor Cyan
-        Write-Host "  View logs:  .\run-local.ps1 -Logs" -ForegroundColor White
-        Write-Host "  Stop:       .\run-local.ps1 -Stop" -ForegroundColor White
-        Write-Host "  Help:       .\run-local.ps1 -Help" -ForegroundColor White
+        Write-Host "  View logs:  .\run-local.ps1 Logs" -ForegroundColor White
+        Write-Host "  Stop:       .\run-local.ps1 Stop" -ForegroundColor White
+        Write-Host "  Help:       .\run-local.ps1 Help" -ForegroundColor White
         Write-Host "  Or use:     Get-Content backend-local.log -Wait" -ForegroundColor White
         Write-Host ""
         
@@ -323,11 +303,11 @@ try {
                     Write-InfoMsg "Health check: http://localhost:8080/actuator/health"
                 } else {
                     Write-ErrorMsg "Backend is running but not healthy: $($health.status)"
-                    Write-InfoMsg "Check logs: .\run-local.ps1 -Logs"
+                    Write-InfoMsg "Check logs: .\run-local.ps1 Logs"
                 }
             } catch {
                 Write-ErrorMsg "Backend is running but health check failed"
-                Write-InfoMsg "It may still be starting up. Check logs: .\run-local.ps1 -Logs"
+                Write-InfoMsg "It may still be starting up. Check logs: .\run-local.ps1 Logs"
             }
         } else {
             Write-ErrorMsg "Backend process stopped unexpectedly"
@@ -335,7 +315,95 @@ try {
             Remove-Item $PidFile -ErrorAction SilentlyContinue
             exit 1
         }
-    } else {
+    } finally {
+        Pop-Location
+    }
+
+    Write-Host ""
+    Write-Host "==================================================" -ForegroundColor Green
+    Write-Host "Backend is running!" -ForegroundColor Green
+    Write-Host "==================================================" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "Test URLs:" -ForegroundColor Cyan
+    Write-Host "  Health:     http://localhost:8080/actuator/health" -ForegroundColor White
+    Write-Host "  Auth Login: http://localhost:8080/auth/login" -ForegroundColor White
+    Write-Host "  API:        http://localhost:8080/api/applications" -ForegroundColor White
+    Write-Host ""
+}
+
+# Function to run in foreground (start)
+function Start-Foreground {
+    Write-Host ""
+    Write-Host "==================================================" -ForegroundColor Yellow
+    Write-Host "RAP Backend - Local Development with Maven" -ForegroundColor Yellow
+    Write-Host "==================================================" -ForegroundColor Yellow
+    Write-Host ""
+    Write-InfoMsg "Run mode: FOREGROUND (hot reload enabled)"
+    Write-Host ""
+
+    # Check if Java is installed
+    Write-InfoMsg "Checking Java installation..."
+    try {
+        $javaVersion = java -version 2>&1 | Select-Object -First 1
+        Write-SuccessMsg "Java found: $javaVersion"
+    } catch {
+        Write-ErrorMsg "Java is not installed or not in PATH"
+        Write-InfoMsg "Install Java 21: winget install Microsoft.OpenJDK.21"
+        exit 1
+    }
+
+    # Check if .env file exists
+    if (-not (Test-Path $EnvFile)) {
+        Write-ErrorMsg ".env file not found: $EnvFile"
+        Write-InfoMsg "Run './dev.ps1 Setup' to create .env from .env.example"
+        exit 1
+    }
+
+    Write-InfoMsg "Loading environment variables from .env..."
+
+    # Load all environment variables from .env file
+    Get-Content $EnvFile | ForEach-Object {
+        if ($_ -match '^([^#=]+)=(.*)$') {
+            $key = $matches[1].Trim()
+            $value = $matches[2].Trim()
+            Set-Item -Path "env:$key" -Value $value
+        }
+    }
+
+    Write-SuccessMsg "Environment variables loaded from .env"
+
+    # Override Docker-specific URLs for local execution
+    Write-InfoMsg "Adjusting URLs for local execution..."
+
+    # SQL Server connection (local: localhost, container: database or host.docker.internal)
+    $env:AZURE_SQL_CONNECTIONSTRING = "jdbc:sqlserver://localhost:1433;databaseName=raptordb;user=$env:DB_USERNAME;password=$env:DB_PASSWORD;encrypt=true;trustServerCertificate=true"
+
+    # Keycloak URLs (local: localhost, container: host.docker.internal)
+    $env:OIDC_TOKEN_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/token"
+    $env:OIDC_USER_INFO_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/userinfo"
+    $env:OIDC_JWK_SET_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/certs"
+
+    Write-SuccessMsg "URLs configured for local execution"
+
+    # Display key configuration
+    Write-Host ""
+    Write-Host "Configuration Summary:" -ForegroundColor Cyan
+    Write-Host "  Database:     localhost:1433 (raptordb)" -ForegroundColor White
+    Write-Host "  Keycloak:     localhost:9090 (realm: raptor)" -ForegroundColor White
+    Write-Host "  Frontend URL: $env:FRONTEND_URL" -ForegroundColor White
+    Write-Host "  OIDC Client:  $env:OIDC_CLIENT_ID" -ForegroundColor White
+    Write-Host ""
+
+    # Stop any existing backend process
+    if (Test-Path $PidFile) {
+        Write-InfoMsg "Stopping existing backend process..."
+        Stop-Backend
+    }
+
+    # Change to backend directory
+    Push-Location $BackendDir
+
+    try {
         # Run in foreground (default)
         Write-InfoMsg "Starting backend in foreground mode..."
         Write-Host ""
@@ -351,18 +419,47 @@ try {
         Write-Host ""
         
         & .\mvnw.cmd spring-boot:run
+    } finally {
+        Pop-Location
     }
-} finally {
-    Pop-Location
+
+    Write-Host ""
+    Write-Host "==================================================" -ForegroundColor Green
+    Write-Host "Backend is running!" -ForegroundColor Green
+    Write-Host "==================================================" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "Test URLs:" -ForegroundColor Cyan
+    Write-Host "  Health:     http://localhost:8080/actuator/health" -ForegroundColor White
+    Write-Host "  Auth Login: http://localhost:8080/auth/login" -ForegroundColor White
+    Write-Host "  API:        http://localhost:8080/api/applications" -ForegroundColor White
+    Write-Host ""
 }
 
-Write-Host ""
-Write-Host "==================================================" -ForegroundColor Green
-Write-Host "Backend is running!" -ForegroundColor Green
-Write-Host "==================================================" -ForegroundColor Green
-Write-Host ""
-Write-Host "Test URLs:" -ForegroundColor Cyan
-Write-Host "  Health:     http://localhost:8080/actuator/health" -ForegroundColor White
-Write-Host "  Auth Login: http://localhost:8080/auth/login" -ForegroundColor White
-Write-Host "  API:        http://localhost:8080/api/applications" -ForegroundColor White
-Write-Host ""
+# Main command router
+switch ($Command.ToLower()) {
+    "help" {
+        Show-Help
+        exit 0
+    }
+    "stop" {
+        Stop-Backend
+        exit 0
+    }
+    "logs" {
+        Show-Logs
+        exit 0
+    }
+    "background" {
+        Run-Background
+        exit 0
+    }
+    "start" {
+        Start-Foreground
+        exit 0
+    }
+    default {
+        # Default to Start (foreground)
+        Start-Foreground
+        exit 0
+    }
+}
