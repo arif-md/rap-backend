@@ -5,9 +5,75 @@ Spring Boot REST API service for the RAP (Rapid Application Platform) applicatio
 ## Quick Start
 
 ### Prerequisites
-- Docker Desktop (Windows/Mac) or Docker Engine (Linux)
-- Azure Container Registry (ACR) credentials
-- **No additional tools required** - use PowerShell script (Windows) or Makefile (cross-platform)
+- **For Docker Development:**
+  - Docker Desktop (Windows/Mac) or Docker Engine (Linux)
+  - Azure Container Registry (ACR) credentials
+- **For Local Maven Development:**
+  - Java 21 (JDK)
+  - SQL Server container running (via `dev.ps1 Dev-Start`)
+  - Keycloak container running (via `dev.ps1 Dev-Full`)
+
+### Two Development Modes
+
+#### Mode 1: Docker Containers (Full Stack)
+**Best for:** Testing full application, running all services together
+
+**Windows (PowerShell):**
+```powershell
+.\dev.ps1 Setup          # Create .env from template
+notepad .env             # Edit with your ACR credentials
+.\dev.ps1 ACR-Login      # Authenticate to ACR
+.\dev.ps1 Dev-Full       # Start all services (frontend, backend, database, keycloak)
+```
+
+**Cross-platform (Make):**
+```bash
+make setup               # Create .env from template
+nano .env                # Edit with your ACR credentials
+make acr-login           # Authenticate to ACR
+make dev-full            # Start all services
+```
+
+#### Mode 2: Local Maven (Backend Only)
+**Best for:** Active backend development with hot reload
+
+**Prerequisites:**
+```powershell
+# First start database and Keycloak containers
+.\dev.ps1 Setup          # Create .env (one time)
+.\dev.ps1 Dev-Start      # Start database container
+# OR for Keycloak: .\dev.ps1 Dev-Full then stop backend container
+```
+
+**Run Backend Locally:**
+```powershell
+# Foreground mode (default) - hot reload enabled
+.\run-local.ps1          
+
+# Background mode - manual reload required
+.\run-local.ps1 -Background
+
+# View logs (background mode only)
+.\run-local.ps1 -Logs
+
+# Stop backend
+.\run-local.ps1 -Stop
+
+# Show help
+.\run-local.ps1 -Help
+```
+
+**Hot Reload Behavior:**
+- **Foreground mode** (`.\run-local.ps1`): 
+  - ✅ Spring Boot DevTools auto-detects Java class changes
+  - ✅ Application restarts automatically on save (3-5 seconds)
+  - ✅ Best for active development
+- **Background mode** (`.\run-local.ps1 -Background`):
+  - ❌ Hot reload NOT available
+  - Must stop and restart manually
+- **VS Code Agent mode**:
+  - Changes are staged but NOT deployed until you accept them
+  - Prevents untested code from running
 
 ### Setup
 
@@ -66,16 +132,114 @@ Spring Boot REST API service for the RAP (Rapid Application Platform) applicatio
 
 ### Common Commands
 
+#### Docker Container Commands (dev.ps1 / Makefile)
+
 | Task | PowerShell (Windows) | Make (Cross-platform) |
 |------|---------------------|----------------------|
+| **Setup & Login** |
+| Create .env file | `.\dev.ps1 Setup` | `make setup` |
+| Login to ACR | `.\dev.ps1 ACR-Login` | `make acr-login` |
+| **Service Management** |
 | Start backend + database | `.\dev.ps1 Dev-Start` | `make dev-start` |
+| Start all services (full stack) | `.\dev.ps1 Dev-Full` | `make dev-full` |
+| Stop all services | `.\dev.ps1 Dev-Stop` | `make dev-stop` |
+| Restart services | `.\dev.ps1 Dev-Restart` | `make dev-restart` |
 | Rebuild backend | `.\dev.ps1 Dev-Rebuild` | `make dev-rebuild` |
-| View logs | `.\dev.ps1 Dev-Logs` | `make dev-logs` |
-| Stop services | `.\dev.ps1 Dev-Stop` | `make dev-stop` |
+| **Monitoring** |
+| View logs (all) | `.\dev.ps1 Dev-Logs` | `make dev-logs` |
+| View logs (specific service) | `.\dev.ps1 Dev-Logs backend` | `make dev-logs SERVICE=backend` |
 | Check status | `.\dev.ps1 Dev-Status` | `make dev-status` |
+| **Database** |
 | Initialize database | `.\dev.ps1 DB-Init` | `make db-init` |
-| Clean up | `.\dev.ps1 Clean` | `make clean` |
+| Connect to database | `.\dev.ps1 DB-Connect` | `make db-connect` |
+| **Cleanup** |
+| Clean containers | `.\dev.ps1 Clean` | `make clean` |
 | Show all commands | `.\dev.ps1 Help` | `make help` |
+
+#### Local Maven Commands (run-local.ps1)
+
+| Task | Command | Description |
+|------|---------|-------------|
+| **Run Backend** |
+| Start in foreground (default) | `.\run-local.ps1` | Hot reload enabled, see logs directly |
+| Start in background | `.\run-local.ps1 -Background` | Hidden process, logs to file |
+| **Monitoring** |
+| View logs | `.\run-local.ps1 -Logs` | Show live logs (background mode) |
+| Stop backend | `.\run-local.ps1 -Stop` | Terminate running process |
+| **Help** |
+| Show help | `.\run-local.ps1 -Help` | Display all commands and usage |
+
+**Key Differences:**
+- **`dev.ps1`**: Manages Docker containers (full stack or partial)
+- **`run-local.ps1`**: Runs backend via Maven locally (requires Java 21, supports hot reload)
+
+## Development Workflow Comparison
+
+### Docker Development (`dev.ps1`)
+
+**Pros:**
+✅ Production-like environment (same containers as deployed)  
+✅ All services available (frontend, backend, database, keycloak)  
+✅ No local Java/Node.js installation needed  
+✅ Consistent across all developers  
+
+**Cons:**
+❌ Slower build/restart cycles (Docker image rebuild)  
+❌ No hot reload for code changes  
+❌ Higher resource usage (multiple containers)  
+
+**Best For:**
+- Testing full application flow
+- Frontend-backend integration testing
+- Reproducing production issues
+- Onboarding new developers (minimal setup)
+
+**Typical Workflow:**
+```powershell
+.\dev.ps1 Setup          # One-time setup
+.\dev.ps1 ACR-Login      # One-time ACR authentication
+.\dev.ps1 Dev-Full       # Start all services
+# Make code changes
+.\dev.ps1 Dev-Rebuild    # Rebuild and restart backend container
+.\dev.ps1 Dev-Logs       # View logs
+.\dev.ps1 Dev-Stop       # Stop when done
+```
+
+### Local Maven Development (`run-local.ps1`)
+
+**Pros:**
+✅ **Hot reload enabled** - code changes auto-restart (3-5 seconds)  
+✅ Faster development cycle  
+✅ Direct IDE debugging support  
+✅ Lower resource usage (only backend runs locally)  
+
+**Cons:**
+❌ Requires Java 21 installed locally  
+❌ Still needs database/keycloak containers running  
+❌ Slightly different environment than production  
+
+**Best For:**
+- Active backend development (Java code changes)
+- Quick iteration and testing
+- Debugging with IDE breakpoints
+- Learning Spring Boot internals
+
+**Typical Workflow:**
+```powershell
+# One-time: Start database and Keycloak containers
+.\dev.ps1 Dev-Start      # Start database container
+# OR .\dev.ps1 Dev-Full then stop backend container manually
+
+# Run backend locally
+.\run-local.ps1          # Start in foreground (hot reload)
+# Make code changes - app auto-restarts on save!
+# Press Ctrl+C when done
+```
+
+**Recommendation:**
+- **New to project?** Start with `dev.ps1 Dev-Full` (full Docker stack)
+- **Backend development?** Use `run-local.ps1` (hot reload for faster iteration)
+- **Integration testing?** Use `dev.ps1 Dev-Full` (all services together)
 
 ## Documentation
 
@@ -128,11 +292,44 @@ backend/
 ├── docker-compose.yml         # Multi-service orchestration
 ├── docker-compose.override.yml # Local dev overrides
 ├── Dockerfile                 # Multi-stage build
-├── dev.ps1                    # PowerShell development script (Windows)
+├── dev.ps1                    # PowerShell script for Docker containers
+├── run-local.ps1              # PowerShell script for local Maven development
 ├── Makefile                   # Make development commands (cross-platform)
 ├── .env.example               # Environment template
 └── pom.xml                    # Maven dependencies
 ```
+
+### Development Scripts
+
+#### `dev.ps1` - Docker Container Management
+Manages Docker containers for local development. Supports both partial (backend + database) and full stack deployment.
+
+**Common Commands:**
+- `.\dev.ps1 Setup` - Initialize environment
+- `.\dev.ps1 Dev-Start` - Start backend + database containers
+- `.\dev.ps1 Dev-Full` - Start all services (frontend, backend, database, keycloak)
+- `.\dev.ps1 Dev-Stop` - Stop all containers
+- `.\dev.ps1 Help` - Show all available commands
+
+#### `run-local.ps1` - Local Maven Development
+Runs Spring Boot backend locally via Maven (not in Docker). Supports hot reload for faster development cycles.
+
+**Features:**
+- **Foreground mode (default)**: Hot reload enabled, interactive logs
+- **Background mode**: Runs as hidden process, logs to file
+- **Spring Boot DevTools**: Auto-detects code changes and restarts app
+- **VS Code Agent compatible**: Staged changes only deploy when accepted
+
+**Common Commands:**
+- `.\run-local.ps1` - Start in foreground (hot reload)
+- `.\run-local.ps1 -Background` - Start in background
+- `.\run-local.ps1 -Stop` - Stop backend
+- `.\run-local.ps1 -Logs` - View logs
+- `.\run-local.ps1 -Help` - Show detailed help
+
+**When to Use:**
+- Use `dev.ps1` when you need full stack or multiple services
+- Use `run-local.ps1` when actively developing backend code (faster iteration)
 
 ## Technology Stack
 

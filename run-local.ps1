@@ -8,20 +8,29 @@
     This script:
     1. Loads environment variables from .env file (source of truth)
     2. Adjusts URLs for local execution (localhost instead of host.docker.internal)
-    3. Starts Spring Boot with Maven Wrapper in the background
+    3. Starts Spring Boot with Maven Wrapper (foreground by default, or background with -Background)
     4. Provides commands to check logs and stop the process
+    5. Supports hot code deployment via Spring Boot DevTools (changes auto-reload in foreground mode)
 
 .EXAMPLE
     .\run-local.ps1
-    # Starts backend in background
+    # Starts backend in foreground (default) - supports hot reload
 
 .EXAMPLE
-    .\run-local.ps1 -Foreground
-    # Starts backend in foreground (see logs directly)
+    .\run-local.ps1 -Background
+    # Starts backend in background mode
 
 .EXAMPLE
     .\run-local.ps1 -Stop
     # Stops the running backend process
+
+.EXAMPLE
+    .\run-local.ps1 -Logs
+    # Shows live logs from background process
+
+.EXAMPLE
+    .\run-local.ps1 -Help
+    # Shows detailed help information
 
 .NOTES
     Requirements:
@@ -29,17 +38,25 @@
     - .env file in backend directory
     - SQL Server container running on localhost:1433
     - Keycloak container running on localhost:9090
+    
+    Hot Code Deployment:
+    - Foreground mode: Changes are auto-detected and reloaded (via Spring Boot DevTools)
+    - Background mode: Changes require manual restart
+    - In VS Code Agent mode: Changes are NOT deployed until you accept them
 #>
 
 param(
     [Parameter(Mandatory=$false)]
-    [switch]$Foreground,
+    [switch]$Background,
     
     [Parameter(Mandatory=$false)]
     [switch]$Stop,
     
     [Parameter(Mandatory=$false)]
-    [switch]$Logs
+    [switch]$Logs,
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$Help
 )
 
 $ErrorActionPreference = "Stop"
@@ -48,6 +65,89 @@ $BackendDir = $ScriptDir
 $EnvFile = Join-Path $BackendDir ".env"
 $PidFile = Join-Path $BackendDir ".backend-local.pid"
 $LogFile = Join-Path $BackendDir "backend-local.log"
+
+# Function to show detailed help
+function Show-Help {
+    Write-Host ""
+    Write-Host "==================================================" -ForegroundColor Yellow
+    Write-Host "RAP Backend - Local Development Script" -ForegroundColor Yellow
+    Write-Host "==================================================" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "USAGE:" -ForegroundColor Cyan
+    Write-Host "  .\run-local.ps1 [COMMAND]" -ForegroundColor White
+    Write-Host ""
+    Write-Host "COMMANDS:" -ForegroundColor Cyan
+    Write-Host "  (none)          " -NoNewline -ForegroundColor White
+    Write-Host "Start backend in FOREGROUND mode (default)" -ForegroundColor Gray
+    Write-Host "                  " -NoNewline
+    Write-Host "• Hot reload enabled - code changes auto-detect" -ForegroundColor DarkGray
+    Write-Host "                  " -NoNewline
+    Write-Host "• Press Ctrl+C to stop" -ForegroundColor DarkGray
+    Write-Host "                  " -NoNewline
+    Write-Host "• Best for active development" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  -Background     " -NoNewline -ForegroundColor White
+    Write-Host "Start backend in BACKGROUND mode" -ForegroundColor Gray
+    Write-Host "                  " -NoNewline
+    Write-Host "• Runs as hidden process" -ForegroundColor DarkGray
+    Write-Host "                  " -NoNewline
+    Write-Host "• Logs to backend-local.log" -ForegroundColor DarkGray
+    Write-Host "                  " -NoNewline
+    Write-Host "• Changes require manual restart" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  -Stop           " -NoNewline -ForegroundColor White
+    Write-Host "Stop the running backend process" -ForegroundColor Gray
+    Write-Host "                  " -NoNewline
+    Write-Host "• Terminates background process if running" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  -Logs           " -NoNewline -ForegroundColor White
+    Write-Host "Show live logs from background process" -ForegroundColor Gray
+    Write-Host "                  " -NoNewline
+    Write-Host "• Follows log file in real-time" -ForegroundColor DarkGray
+    Write-Host "                  " -NoNewline
+    Write-Host "• Press Ctrl+C to exit log view" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  -Help           " -NoNewline -ForegroundColor White
+    Write-Host "Show this help message" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "EXAMPLES:" -ForegroundColor Cyan
+    Write-Host "  .\run-local.ps1              " -NoNewline -ForegroundColor Yellow
+    Write-Host "# Start in foreground (default)" -ForegroundColor DarkGray
+    Write-Host "  .\run-local.ps1 -Background  " -NoNewline -ForegroundColor Yellow
+    Write-Host "# Start in background" -ForegroundColor DarkGray
+    Write-Host "  .\run-local.ps1 -Logs        " -NoNewline -ForegroundColor Yellow
+    Write-Host "# View logs" -ForegroundColor DarkGray
+    Write-Host "  .\run-local.ps1 -Stop        " -NoNewline -ForegroundColor Yellow
+    Write-Host "# Stop backend" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "HOT CODE DEPLOYMENT:" -ForegroundColor Cyan
+    Write-Host "  • FOREGROUND mode:" -ForegroundColor White
+    Write-Host "    - Spring Boot DevTools auto-detects Java class changes" -ForegroundColor Gray
+    Write-Host "    - Application restarts automatically on save" -ForegroundColor Gray
+    Write-Host "    - Fast reload (seconds, not full restart)" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  • BACKGROUND mode:" -ForegroundColor White
+    Write-Host "    - Changes NOT auto-deployed" -ForegroundColor Gray
+    Write-Host "    - Must stop and restart manually" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  • VS Code Agent mode:" -ForegroundColor White
+    Write-Host "    - Changes are staged but NOT deployed" -ForegroundColor Gray
+    Write-Host "    - Only applied when you ACCEPT the changes" -ForegroundColor Gray
+    Write-Host "    - Prevents untested code from running" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "REQUIREMENTS:" -ForegroundColor Cyan
+    Write-Host "  ✓ Java 21 (JDK)" -ForegroundColor White
+    Write-Host "  ✓ .env file (run './dev.ps1 Setup' if missing)" -ForegroundColor White
+    Write-Host "  ✓ SQL Server on localhost:1433" -ForegroundColor White
+    Write-Host "  ✓ Keycloak on localhost:9090" -ForegroundColor White
+    Write-Host ""
+    Write-Host "NOTES:" -ForegroundColor Cyan
+    Write-Host "  • PID saved to:   .backend-local.pid" -ForegroundColor White
+    Write-Host "  • Logs saved to:  backend-local.log" -ForegroundColor White
+    Write-Host "  • Health check:   http://localhost:8080/actuator/health" -ForegroundColor White
+    Write-Host ""
+    exit 0
+}
 
 # Color output functions
 function Write-InfoMsg {
@@ -93,6 +193,11 @@ function Show-Logs {
     }
 }
 
+# Handle help flag first
+if ($Help) {
+    Show-Help
+}
+
 # Handle stop and logs flags
 if ($Stop) {
     Stop-Backend
@@ -108,6 +213,8 @@ Write-Host ""
 Write-Host "==================================================" -ForegroundColor Yellow
 Write-Host "RAP Backend - Local Development with Maven" -ForegroundColor Yellow
 Write-Host "==================================================" -ForegroundColor Yellow
+Write-Host ""
+Write-InfoMsg "Run mode: $(if ($Background) { 'BACKGROUND (manual reload)' } else { 'FOREGROUND (hot reload enabled)' })"
 Write-Host ""
 
 # Check if Java is installed
@@ -173,16 +280,13 @@ if (Test-Path $PidFile) {
 Push-Location $BackendDir
 
 try {
-    if ($Foreground) {
-        # Run in foreground
-        Write-InfoMsg "Starting backend in foreground mode..."
-        Write-InfoMsg "Press Ctrl+C to stop"
-        Write-Host ""
-        
-        & .\mvnw.cmd spring-boot:run
-    } else {
+    if ($Background) {
         # Run in background
         Write-InfoMsg "Starting backend in background..."
+        Write-Host ""
+        Write-Host "  Note: Hot reload NOT available in background mode" -ForegroundColor Yellow
+        Write-Host "        Code changes require manual restart" -ForegroundColor Yellow
+        Write-Host ""
         
         # Start Maven process in background and capture output using pwsh
         $process = Start-Process -FilePath "pwsh.exe" `
@@ -199,6 +303,7 @@ try {
         Write-Host "Useful commands:" -ForegroundColor Cyan
         Write-Host "  View logs:  .\run-local.ps1 -Logs" -ForegroundColor White
         Write-Host "  Stop:       .\run-local.ps1 -Stop" -ForegroundColor White
+        Write-Host "  Help:       .\run-local.ps1 -Help" -ForegroundColor White
         Write-Host "  Or use:     Get-Content backend-local.log -Wait" -ForegroundColor White
         Write-Host ""
         
@@ -230,6 +335,22 @@ try {
             Remove-Item $PidFile -ErrorAction SilentlyContinue
             exit 1
         }
+    } else {
+        # Run in foreground (default)
+        Write-InfoMsg "Starting backend in foreground mode..."
+        Write-Host ""
+        Write-Host "  ✓ Hot reload ENABLED via Spring Boot DevTools" -ForegroundColor Green
+        Write-Host "    - Java class changes auto-detected" -ForegroundColor Gray
+        Write-Host "    - Application restarts automatically" -ForegroundColor Gray
+        Write-Host "    - Fast reload (3-5 seconds typical)" -ForegroundColor Gray
+        Write-Host ""
+        Write-Host "  Note: In VS Code Agent mode, changes are staged" -ForegroundColor Yellow
+        Write-Host "        and NOT deployed until you accept them" -ForegroundColor Yellow
+        Write-Host ""
+        Write-InfoMsg "Press Ctrl+C to stop"
+        Write-Host ""
+        
+        & .\mvnw.cmd spring-boot:run
     }
 } finally {
     Pop-Location
