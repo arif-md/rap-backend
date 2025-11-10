@@ -196,28 +196,68 @@ function Test-PortInUse {
 function Stop-JavaOnPort {
     param([int]$Port = 8080)
     
+    # Get all Java processes
+    $javaProcesses = Get-Process -Name "java" -ErrorAction SilentlyContinue
+    
+    if (-not $javaProcesses) {
+        Write-InfoMsg "No Java processes found"
+        return $true
+    }
+    
+    # Try to find processes using the port
     $processes = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | 
-                 Select-Object -ExpandProperty OwningProcess -Unique
+                 Where-Object { $_.State -eq 'Listen' -or $_.State -eq 'Established' } |
+                 Select-Object -ExpandProperty OwningProcess -Unique |
+                 Where-Object { $_ -gt 0 }  # Exclude PID 0 (System Idle)
+    
+    $killed = $false
     
     if ($processes) {
+        # Stop processes that are actually using the port
         foreach ($procId in $processes) {
             try {
                 $process = Get-Process -Id $procId -ErrorAction SilentlyContinue
-                if ($process) {
-                    Write-InfoMsg "Found process on port ${Port}: $($process.Name) (PID: $procId)"
+                if ($process -and $process.Name -match 'java') {
+                    Write-InfoMsg "Found Java process on port ${Port}: $($process.Name) (PID: $procId)"
                     Stop-Process -Id $procId -Force -ErrorAction Stop
                     Write-SuccessMsg "Stopped process $($process.Name) (PID: $procId)"
+                    $killed = $true
                 }
             } catch {
                 $errorMsg = $_.Exception.Message
                 Write-ErrorMsg "Failed to stop process ${procId}: $errorMsg"
             }
         }
+    } else {
+        # Fallback: Kill all Java processes as they might be holding the port
+        Write-InfoMsg "No specific processes found on port $Port (might be in TIME_WAIT state)"
+        Write-InfoMsg "Checking all Java processes..."
         
+        foreach ($javaProc in $javaProcesses) {
+            # Check if this Java process is listening on our port by checking command line
+            try {
+                $cmdLine = (Get-CimInstance Win32_Process -Filter "ProcessId = $($javaProc.Id)" -ErrorAction SilentlyContinue).CommandLine
+                if ($cmdLine -and ($cmdLine -match "spring-boot" -or $cmdLine -match "backend")) {
+                    Write-InfoMsg "Found Spring Boot Java process: $($javaProc.Name) (PID: $($javaProc.Id))"
+                    Stop-Process -Id $javaProc.Id -Force -ErrorAction Stop
+                    Write-SuccessMsg "Stopped Java process (PID: $($javaProc.Id))"
+                    $killed = $true
+                }
+            } catch {
+                Write-ErrorMsg "Failed to stop Java process $($javaProc.Id): $($_.Exception.Message)"
+            }
+        }
+    }
+    
+    if ($killed) {
         # Wait for port to be released
-        Start-Sleep -Seconds 2
+        Start-Sleep -Seconds 3
         
-        if (Test-PortInUse -Port $Port) {
+        # Check if port is still in use (ignoring TIME_WAIT states)
+        $stillListening = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | 
+                          Where-Object { $_.State -eq 'Listen' }
+        
+        if ($stillListening) {
             Write-ErrorMsg "Port $Port is still in use after stopping processes"
             return $false
         } else {
@@ -536,7 +576,38 @@ function Start-Foreground {
         Write-InfoMsg "Press Ctrl+C to stop"
         Write-Host ""
         
-        & .\mvnw.cmd spring-boot:run
+        # Register cleanup handler for Ctrl+C
+        $port = Get-AppPort
+        $cleanupScript = {
+            param($Port)
+            Write-Host ""
+            Write-Host "[INFO] Cleaning up processes on port $Port..." -ForegroundColor Cyan
+            
+            # Find and kill Java processes on the port
+            $processes = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | 
+                         Select-Object -ExpandProperty OwningProcess -Unique
+            
+            if ($processes) {
+                foreach ($procId in $processes) {
+                    try {
+                        $process = Get-Process -Id $procId -ErrorAction SilentlyContinue
+                        if ($process -and $process.Name -match 'java') {
+                            Write-Host "[INFO] Stopping Java process (PID: $procId)..." -ForegroundColor Cyan
+                            Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+                        }
+                    } catch {
+                        # Ignore errors during cleanup
+                    }
+                }
+            }
+        }
+        
+        try {
+            & .\mvnw.cmd spring-boot:run
+        } finally {
+            # Always cleanup on exit (Ctrl+C or normal exit)
+            & $cleanupScript -Port $port
+        }
         
         # This line only executes if Maven exits (Ctrl+C or error)
         $exitCode = $LASTEXITCODE

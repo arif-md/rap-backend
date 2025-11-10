@@ -250,6 +250,13 @@ make dev-full            # Start all services
 - **[Local Development Guide](LOCAL-DEVELOPMENT.md)** - Development workflow and best practices
 - **[Keycloak Setup](../docs/KEYCLOAK-LOCAL-SETUP.md)** - OIDC authentication provider configuration
 
+### Configuration Management
+- **[Configuration Management Guide](../docs/CONFIGURATION-MANAGEMENT.md)** - ⚙️ **IMPORTANT** - How config flows through local/Docker/Azure environments
+  - Understand JWT timeout configuration across environments
+  - Spring Boot profile precedence rules
+  - Frontend runtime-config.json generation
+  - Common configuration pitfalls and solutions
+
 ### Reference Guides
 - **[Docker Internals](DOCKER-INTERNALS.md)** - Deep dive into Docker layers, caching, and optimization
 - **[Accessing the App](ACCESSING-THE-APP.md)** - API authentication and endpoint details

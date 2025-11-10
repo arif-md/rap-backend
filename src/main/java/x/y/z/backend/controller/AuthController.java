@@ -10,7 +10,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.web.bind.annotation.*;
 import x.y.z.backend.domain.model.User;
-import x.y.z.backend.security.JwtAuthenticationFilter;
 import x.y.z.backend.security.JwtTokenUtil;
 import x.y.z.backend.service.JwtTokenService;
 import x.y.z.backend.service.UserService;
@@ -147,18 +146,19 @@ public class AuthController {
             HttpServletRequest request,
             HttpServletResponse response) {
 
-        // OPTION 1: Force OIDC re-authentication (ENABLED - recommended for security)
-        // Comment this block to enable silent refresh (see OPTION 2 below)
+        // OPTION 1: Force OIDC re-authentication (DISABLED)
+        // Uncomment this block to force OIDC re-authentication instead of silent refresh
+        /*
         Map<String, Object> errorResponse = new HashMap<>();
         errorResponse.put("success", false);
         errorResponse.put("message", "Session expired. Please login again.");
         errorResponse.put("requiresReauth", true);
         errorResponse.put("loginUrl", "/auth/login");
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+        */
 
-        // OPTION 2: Silent refresh (DISABLED - uncomment to enable)
+        // OPTION 2: Silent refresh (ENABLED)
         // This allows seamless session extension without OIDC interaction
-        /*
         try {
             // Extract refresh token from cookie
             String refreshToken = extractTokenFromCookie(request, "refresh_token");
@@ -204,11 +204,9 @@ public class AuthController {
             errorResponse.put("success", false);
             errorResponse.put("message", "Token refresh failed: " + e.getMessage());
             errorResponse.put("requiresReauth", true);
-            errorResponse.put("requiresReauth", true);
             errorResponse.put("loginUrl", "/auth/login");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
-        */
     }
 
     /**
