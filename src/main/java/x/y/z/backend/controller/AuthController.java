@@ -307,6 +307,10 @@ public class AuthController {
             userInfo.put("isActive", user.getIsActive());
             userInfo.put("lastLoginAt", user.getLastLoginAt());
             userInfo.put("createdAt", user.getCreatedAt());
+            // Set isExternalUser: true if role is USER, false otherwise (internal users have other roles)
+            boolean isExternalUser = roles != null && roles.stream()
+                .anyMatch(role -> "USER".equalsIgnoreCase(role));
+            userInfo.put("isExternalUser", isExternalUser);
 
             return ResponseEntity.ok(userInfo);
 

@@ -96,8 +96,9 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             response.addCookie(refreshTokenCookie);
             logger.debug("Refresh token cookie set");
 
-            // Redirect to frontend dashboard
-            String redirectUrl = frontendUrl + "/dashboard";
+            // Redirect to frontend auth callback component
+            // This allows the frontend to fetch user details and handle navigation
+            String redirectUrl = frontendUrl + "/auth-callback";
             logger.info("Redirecting to: {}", redirectUrl);
             response.sendRedirect(redirectUrl);
 
