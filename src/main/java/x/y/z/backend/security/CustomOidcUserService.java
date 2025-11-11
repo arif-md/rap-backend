@@ -10,7 +10,10 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Component;
+import x.y.z.backend.domain.model.User;
+import x.y.z.backend.handler.UserHandler;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -26,11 +29,20 @@ import java.util.Set;
  * <p>
  * Solution: Extract all user data from ID Token claims (which are already validated via JWK Set)
  * This works locally AND in Azure where backend/browser can use same public URL.
+ * <p>
+ * On first authentication, this service automatically creates a user record in the database,
+ * ensuring that user-dependent endpoints (workflow tasks, permits) can function correctly.
  */
 @Component
 public class CustomOidcUserService extends OidcUserService {
     
     private static final Logger logger = LoggerFactory.getLogger(CustomOidcUserService.class);
+    
+    private final UserHandler userHandler;
+    
+    public CustomOidcUserService(UserHandler userHandler) {
+        this.userHandler = userHandler;
+    }
     
     @Override
     public OidcUser loadUser(OidcUserRequest userRequest) throws OAuth2AuthenticationException {
@@ -45,6 +57,9 @@ public class CustomOidcUserService extends OidcUserService {
         logger.info("User preferred_username: {}", claims.get("preferred_username"));
         logger.info("User email: {}", claims.get("email"));
         
+        // Sync user to database (create if doesn't exist, update last login if exists)
+        syncUserToDatabase(claims);
+        
         // Extract roles/authorities from ID Token
         Set<GrantedAuthority> authorities = extractAuthorities(claims);
         logger.info("Extracted authorities: {}", authorities);
@@ -57,6 +72,41 @@ public class CustomOidcUserService extends OidcUserService {
             oidcUser.getSubject());
         
         return oidcUser;
+    }
+    
+    /**
+     * Sync OIDC user to local database.
+     * Creates user if doesn't exist, updates last login timestamp if exists.
+     */
+    private void syncUserToDatabase(Map<String, Object> claims) {
+        String oidcSubject = (String) claims.get("sub");
+        String email = (String) claims.get("email");
+        String name = (String) claims.get("name");
+        String preferredUsername = (String) claims.get("preferred_username");
+        
+        // Use name if available, fall back to preferred_username, then email
+        String fullName = name != null ? name : (preferredUsername != null ? preferredUsername : email);
+        
+        try {
+            // Check if user already exists
+            User existingUser = userHandler.findByOidcSubject(oidcSubject);
+            
+            if (existingUser != null) {
+                // Update last login timestamp
+                logger.info("User exists in database: {} (ID: {})", existingUser.getEmail(), existingUser.getId());
+                userHandler.updateLastLogin(existingUser.getId(), LocalDateTime.now());
+                logger.debug("Updated last login for user: {}", existingUser.getEmail());
+            } else {
+                // Create new user
+                User newUser = new User(oidcSubject, email, fullName);
+                User createdUser = userHandler.insert(newUser);
+                logger.info("Created new user in database: {} (ID: {})", createdUser.getEmail(), createdUser.getId());
+            }
+        } catch (Exception e) {
+            logger.error("Failed to sync user to database: {}", oidcSubject, e);
+            // Don't throw exception - allow authentication to proceed even if DB sync fails
+            // This ensures authentication continues to work even if database is temporarily unavailable
+        }
     }
     
     /**

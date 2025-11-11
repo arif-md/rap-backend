@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="x.y.z.backend.repository.mapper.PermitMapper">
+
+    <!-- Result Map for Permit -->
+    <resultMap id="PermitResultMap" type="x.y.z.backend.domain.model.Permit">
+        <id property="id" column="id"/>
+        <result property="permitNumber" column="permit_number"/>
+        <result property="permitType" column="permit_type"/>
+        <result property="status" column="status"/>
+        <result property="issueDate" column="issue_date"/>
+        <result property="expiryDate" column="expiry_date"/>
+        <result property="holderId" column="holder_id"/>
+        <result property="description" column="description"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="updatedBy" column="updated_by"/>
+    </resultMap>
+
+    <!-- Insert Permit -->
+    <insert id="insert" parameterType="x.y.z.backend.domain.model.Permit" 
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO permit (
+            permit_number,
+            permit_type,
+            status,
+            issue_date,
+            expiry_date,
+            holder_id,
+            description,
+            created_by,
+            updated_by
+        ) VALUES (
+            #{permitNumber},
+            #{permitType},
+            #{status},
+            #{issueDate},
+            #{expiryDate},
+            #{holderId},
+            #{description},
+            #{createdBy},
+            #{updatedBy}
+        )
+    </insert>
+
+    <!-- Update Permit -->
+    <update id="update" parameterType="x.y.z.backend.domain.model.Permit">
+        UPDATE permit
+        SET permit_type = #{permitType},
+            status = #{status},
+            issue_date = #{issueDate},
+            expiry_date = #{expiryDate},
+            holder_id = #{holderId},
+            description = #{description},
+            updated_at = GETDATE(),
+            updated_by = #{updatedBy}
+        WHERE id = #{id}
+    </update>
+
+    <!-- Delete Permit by ID -->
+    <delete id="deleteById">
+        DELETE FROM permit WHERE id = #{id}
+    </delete>
+
+    <!-- Find Permit by ID -->
+    <select id="findById" resultMap="PermitResultMap">
+        SELECT 
+            id,
+            permit_number,
+            permit_type,
+            status,
+            issue_date,
+            expiry_date,
+            holder_id,
+            description,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM permit
+        WHERE id = #{id}
+    </select>
+
+    <!-- Find Permit by Number -->
+    <select id="findByPermitNumber" resultMap="PermitResultMap">
+        SELECT 
+            id,
+            permit_number,
+            permit_type,
+            status,
+            issue_date,
+            expiry_date,
+            holder_id,
+            description,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM permit
+        WHERE permit_number = #{permitNumber}
+    </select>
+
+    <!-- Find All Permits -->
+    <select id="findAll" resultMap="PermitResultMap">
+        SELECT 
+            id,
+            permit_number,
+            permit_type,
+            status,
+            issue_date,
+            expiry_date,
+            holder_id,
+            description,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM permit
+        ORDER BY issue_date DESC
+    </select>
+
+    <!-- Find Permits by User with Pagination -->
+    <select id="findByUserPaginated" resultMap="PermitResultMap">
+        SELECT 
+            id,
+            permit_number,
+            permit_type,
+            status,
+            issue_date,
+            expiry_date,
+            holder_id,
+            description,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM permit
+        WHERE holder_id = #{holderId}
+        ORDER BY issue_date DESC
+        OFFSET #{offset} ROWS
+        FETCH NEXT #{limit} ROWS ONLY
+    </select>
+
+    <!-- Count Permits by User -->
+    <select id="countByUser" resultType="long">
+        SELECT COUNT(*) 
+        FROM permit
+        WHERE holder_id = #{holderId}
+    </select>
+
+    <!-- Find Permits by Status -->
+    <select id="findByStatus" resultMap="PermitResultMap">
+        SELECT 
+            id,
+            permit_number,
+            permit_type,
+            status,
+            issue_date,
+            expiry_date,
+            holder_id,
+            description,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM permit
+        WHERE status = #{status}
+        ORDER BY issue_date DESC
+    </select>
+
+    <!-- Find Permits by Type -->
+    <select id="findByType" resultMap="PermitResultMap">
+        SELECT 
+            id,
+            permit_number,
+            permit_type,
+            status,
+            issue_date,
+            expiry_date,
+            holder_id,
+            description,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM permit
+        WHERE permit_type = #{permitType}
+        ORDER BY issue_date DESC
+    </select>
+
+    <!-- Count Total Permits -->
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM permit
+    </select>
+
+    <!-- Check if Permit Number Exists -->
+    <select id="existsByPermitNumber" resultType="boolean">
+        SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END
+        FROM permit
+        WHERE permit_number = #{permitNumber}
+    </select>
+
+</mapper>

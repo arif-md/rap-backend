@@ -274,35 +274,36 @@ Write-Info ""
 Write-Info "Direct token approach (used above) bypasses callback for testing"
 Write-Info "In production, frontend initiates OAuth2 flow → callback handles code exchange"
 
-# Test 6: Test authenticated API endpoint with token
+
+# Automated endpoint tests
 if ($global:accessToken) {
-    Write-Step "Test 6: Access protected API with Bearer token"
-    try {
-        $headers = @{
-            Authorization = "Bearer $global:accessToken"
-        }
-        
-        $apiResponse = Invoke-RestMethod -Uri "$BackendUrl/api/applications" `
-            -Method Get `
-            -Headers $headers `
-            -ErrorAction Stop
-        
-        Write-Success "Successfully accessed protected API endpoint"
-        Write-Info "Response: $($apiResponse.Length) applications retrieved"
-        
-        if ($ShowDetails -and $apiResponse.Length -gt 0) {
-            Write-Info "First application: $($apiResponse[0].applicationName)"
-        }
-        
-        $testsPassed++
-    } catch {
-        # API might return 401 if JWT validation fails or endpoint expects different auth
-        if ($_.Exception.Response.StatusCode -eq 401) {
-            Write-Info "API returned 401 - Backend may be expecting JWT in cookies, not Bearer header"
-            Write-Info "This is expected if backend uses cookie-based JWT authentication"
+    $headers = @{ Authorization = "Bearer $global:accessToken" }
+
+    $endpointTests = @(
+        @{ url = "$BackendUrl/api/workflow/tasks?page=0&size=10"; name = "Workflow Tasks" },
+        @{ url = "$BackendUrl/api/permits/my?page=0&size=10"; name = "My Permits" },
+        @{ url = "$BackendUrl/api/applications/my?page=0&size=10"; name = "My Applications" }
+    )
+
+    foreach ($test in $endpointTests) {
+        Write-Step "Testing endpoint: $($test.name)"
+        try {
+            $response = Invoke-RestMethod -Uri $test.url -Method Get -Headers $headers -ErrorAction Stop
+            Write-Success "Success: $($test.name) endpoint returned $($response.Length) items"
+            if ($ShowDetails -and $response.Length -gt 0) {
+                Write-Info "First item: $($response[0])"
+            }
             $testsPassed++
-        } else {
-            Write-Error-Custom "Failed to access API: $($_.Exception.Message)"
+        } catch {
+            if ($_.Exception.Response.StatusCode -eq 401) {
+                Write-Error-Custom "401 Unauthorized: $($test.name) endpoint. Token may be invalid or missing required claims."
+            } elseif ($_.Exception.Response.StatusCode -eq 403) {
+                Write-Error-Custom "403 Forbidden: $($test.name) endpoint. User may lack permissions."
+            } elseif ($_.Exception.Response.StatusCode -eq 404) {
+                Write-Error-Custom "404 Not Found: $($test.name) endpoint. Endpoint may not exist or be mapped."
+            } else {
+                Write-Error-Custom "Error accessing $($test.name): $($_.Exception.Message)"
+            }
             $testsFailed++
         }
     }

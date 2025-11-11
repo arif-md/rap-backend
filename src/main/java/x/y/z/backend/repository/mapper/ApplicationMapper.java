@@ -64,4 +64,22 @@ public interface ApplicationMapper {
      * Check if application code exists
      */
     boolean existsByApplicationCode(@Param("applicationCode") String applicationCode);
+
+    /**
+     * Find applications by user email with pagination
+     * @param userEmail The user's email address
+     * @param offset The starting record index
+     * @param limit The maximum number of records to return
+     */
+    List<Application> findByUserPaginated(
+        @Param("userEmail") String userEmail,
+        @Param("offset") int offset,
+        @Param("limit") int limit
+    );
+
+    /**
+     * Count total applications for a specific user
+     * @param userEmail The user's email address
+     */
+    long countByUser(@Param("userEmail") String userEmail);
 }

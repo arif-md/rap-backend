@@ -180,6 +180,77 @@ function Write-ErrorMsg {
     Write-Host "✗ $Message" -ForegroundColor Red
 }
 
+# Function to load environment variables with cleanup
+function Initialize-EnvironmentVariables {
+    <#
+    .SYNOPSIS
+        Loads environment variables from .env file with automatic cleanup
+    
+    .DESCRIPTION
+        1. Cleans up environment variables that might override application-local.properties
+        2. Loads variables from .env file (excluding JWT config)
+        3. Adjusts URLs for local execution (localhost instead of container networking)
+    #>
+    
+    # Check if .env file exists
+    if (-not (Test-Path $EnvFile)) {
+        Write-ErrorMsg ".env file not found: $EnvFile"
+        Write-InfoMsg "Run './dev.ps1 Setup' to create .env from .env.example"
+        exit 1
+    }
+
+    Write-InfoMsg "Loading environment variables from .env..."
+
+    # Clean up environment variables that might override application-local.properties
+    # This prevents side effects from previous runs or other sessions
+    Write-InfoMsg "Cleaning up environment variables that conflict with application-local.properties..."
+    
+    $conflictingVars = @(
+        'JWT_ACCESS_TOKEN_EXPIRATION_MINUTES',
+        'JWT_REFRESH_TOKEN_EXPIRATION_DAYS',
+        'JWT_SECRET',
+        'JWT_ISSUER'
+    )
+    
+    foreach ($varName in $conflictingVars) {
+        if (Test-Path "env:$varName") {
+            Remove-Item "env:$varName" -ErrorAction SilentlyContinue
+            Write-InfoMsg "  Removed: $varName (will use application-local.properties value)"
+        }
+    }
+
+    # Load all environment variables from .env file
+    Get-Content $EnvFile | ForEach-Object {
+        if ($_ -match '^([^#=]+)=(.*)$') {
+            $key = $matches[1].Trim()
+            $value = $matches[2].Trim()
+            
+            # Skip loading JWT config from .env - let application-local.properties control it
+            if ($conflictingVars -contains $key) {
+                Write-InfoMsg "  Skipping $key from .env (using application-local.properties)"
+                return  # Continue to next iteration
+            }
+            
+            Set-Item -Path "env:$key" -Value $value
+        }
+    }
+
+    Write-SuccessMsg "Environment variables loaded from .env (JWT config excluded)"
+
+    # Override Docker-specific URLs for local execution
+    Write-InfoMsg "Adjusting URLs for local execution..."
+
+    # SQL Server connection (local: localhost, container: database or host.docker.internal)
+    $env:AZURE_SQL_CONNECTIONSTRING = "jdbc:sqlserver://localhost:1433;databaseName=raptordb;user=$env:DB_USERNAME;password=$env:DB_PASSWORD;encrypt=true;trustServerCertificate=true"
+
+    # Keycloak URLs (local: localhost, container: host.docker.internal)
+    $env:OIDC_TOKEN_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/token"
+    $env:OIDC_USER_INFO_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/userinfo"
+    $env:OIDC_JWK_SET_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/certs"
+
+    Write-SuccessMsg "URLs configured for local execution"
+}
+
 # Function to check if port is in use
 function Test-PortInUse {
     param([int]$Port)
@@ -334,38 +405,8 @@ function Run-Background {
         exit 1
     }
 
-    # Check if .env file exists
-    if (-not (Test-Path $EnvFile)) {
-        Write-ErrorMsg ".env file not found: $EnvFile"
-        Write-InfoMsg "Run './dev.ps1 Setup' to create .env from .env.example"
-        exit 1
-    }
-
-    Write-InfoMsg "Loading environment variables from .env..."
-
-    # Load all environment variables from .env file
-    Get-Content $EnvFile | ForEach-Object {
-        if ($_ -match '^([^#=]+)=(.*)$') {
-            $key = $matches[1].Trim()
-            $value = $matches[2].Trim()
-            Set-Item -Path "env:$key" -Value $value
-        }
-    }
-
-    Write-SuccessMsg "Environment variables loaded from .env"
-
-    # Override Docker-specific URLs for local execution
-    Write-InfoMsg "Adjusting URLs for local execution..."
-
-    # SQL Server connection (local: localhost, container: database or host.docker.internal)
-    $env:AZURE_SQL_CONNECTIONSTRING = "jdbc:sqlserver://localhost:1433;databaseName=raptordb;user=$env:DB_USERNAME;password=$env:DB_PASSWORD;encrypt=true;trustServerCertificate=true"
-
-    # Keycloak URLs (local: localhost, container: host.docker.internal)
-    $env:OIDC_TOKEN_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/token"
-    $env:OIDC_USER_INFO_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/userinfo"
-    $env:OIDC_JWK_SET_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/certs"
-
-    Write-SuccessMsg "URLs configured for local execution"
+    # Load environment variables with cleanup
+    Initialize-EnvironmentVariables
 
     # Get configured port
     $port = if ($env:APP_PORT) { [int]$env:APP_PORT } else { 8080 }
@@ -494,38 +535,8 @@ function Start-Foreground {
         exit 1
     }
 
-    # Check if .env file exists
-    if (-not (Test-Path $EnvFile)) {
-        Write-ErrorMsg ".env file not found: $EnvFile"
-        Write-InfoMsg "Run './dev.ps1 Setup' to create .env from .env.example"
-        exit 1
-    }
-
-    Write-InfoMsg "Loading environment variables from .env..."
-
-    # Load all environment variables from .env file
-    Get-Content $EnvFile | ForEach-Object {
-        if ($_ -match '^([^#=]+)=(.*)$') {
-            $key = $matches[1].Trim()
-            $value = $matches[2].Trim()
-            Set-Item -Path "env:$key" -Value $value
-        }
-    }
-
-    Write-SuccessMsg "Environment variables loaded from .env"
-
-    # Override Docker-specific URLs for local execution
-    Write-InfoMsg "Adjusting URLs for local execution..."
-
-    # SQL Server connection (local: localhost, container: database or host.docker.internal)
-    $env:AZURE_SQL_CONNECTIONSTRING = "jdbc:sqlserver://localhost:1433;databaseName=raptordb;user=$env:DB_USERNAME;password=$env:DB_PASSWORD;encrypt=true;trustServerCertificate=true"
-
-    # Keycloak URLs (local: localhost, container: host.docker.internal)
-    $env:OIDC_TOKEN_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/token"
-    $env:OIDC_USER_INFO_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/userinfo"
-    $env:OIDC_JWK_SET_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/certs"
-
-    Write-SuccessMsg "URLs configured for local execution"
+    # Load environment variables with cleanup
+    Initialize-EnvironmentVariables
 
     # Get configured port
     $port = if ($env:APP_PORT) { [int]$env:APP_PORT } else { 8080 }

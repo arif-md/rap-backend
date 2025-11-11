@@ -165,4 +165,32 @@
         WHERE application_code = #{applicationCode}
     </select>
 
+    <!-- Find Applications by User with Pagination -->
+    <select id="findByUserPaginated" resultMap="ApplicationResultMap">
+        SELECT 
+            id,
+            application_name,
+            application_code,
+            description,
+            status,
+            owner_name,
+            owner_email,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM application
+        WHERE owner_email = #{userEmail}
+        ORDER BY created_at DESC
+        OFFSET #{offset} ROWS
+        FETCH NEXT #{limit} ROWS ONLY
+    </select>
+
+    <!-- Count Applications by User -->
+    <select id="countByUser" resultType="long">
+        SELECT COUNT(*) 
+        FROM application
+        WHERE owner_email = #{userEmail}
+    </select>
+
 </mapper>

@@ -1,6 +1,7 @@
 package x.y.z.backend.handler;
 
 import org.springframework.stereotype.Component;
+import x.y.z.backend.domain.dto.PageResponse;
 import x.y.z.backend.domain.model.Application;
 import x.y.z.backend.repository.mapper.ApplicationMapper;
 
@@ -104,5 +105,20 @@ public class ApplicationHandler {
      */
     public boolean existsByCode(String applicationCode) {
         return applicationMapper.existsByApplicationCode(applicationCode);
+    }
+
+    /**
+     * Find applications by user email with pagination.
+     * @param userEmail The user's email address
+     * @param page The page number (0-indexed)
+     * @param size The number of items per page
+     * @return PageResponse containing applications and pagination metadata
+     */
+    public PageResponse<Application> findByUserPaginated(String userEmail, int page, int size) {
+        int offset = page * size;
+        List<Application> applications = applicationMapper.findByUserPaginated(userEmail, offset, size);
+        long totalElements = applicationMapper.countByUser(userEmail);
+        
+        return new PageResponse<>(applications, page, size, totalElements);
     }
 }

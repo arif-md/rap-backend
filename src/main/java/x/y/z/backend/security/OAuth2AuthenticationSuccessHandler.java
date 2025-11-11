@@ -122,6 +122,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         cookie.setSecure(false);    // Set to true in production with HTTPS
         cookie.setPath("/");        // Available for all paths
         cookie.setMaxAge(maxAgeSeconds);
+        cookie.setDomain("localhost"); // Set domain to allow cross-port cookie sharing
         cookie.setAttribute("SameSite", "Lax");  // CSRF protection
         return cookie;
     }

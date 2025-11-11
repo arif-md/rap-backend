@@ -2,6 +2,7 @@ package x.y.z.backend.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import x.y.z.backend.domain.dto.PageResponse;
 import x.y.z.backend.domain.model.Application;
 import x.y.z.backend.exception.ResourceNotFoundException;
 import x.y.z.backend.handler.ApplicationHandler;
@@ -167,6 +168,29 @@ public class ApplicationService {
     @Transactional(readOnly = true)
     public long getApplicationCount() {
         return applicationHandler.count();
+    }
+
+    /**
+     * Get applications for a specific user with pagination.
+     * @param userEmail The user's email address
+     * @param page The page number (0-indexed)
+     * @param size The number of items per page
+     * @return PageResponse containing applications and pagination metadata
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<Application> getApplicationsByUser(String userEmail, int page, int size) {
+        // Business Rule: Validate pagination parameters
+        if (page < 0) {
+            throw new IllegalArgumentException("Page number cannot be negative");
+        }
+        if (size <= 0 || size > 100) {
+            throw new IllegalArgumentException("Page size must be between 1 and 100");
+        }
+        if (userEmail == null || userEmail.trim().isEmpty()) {
+            throw new IllegalArgumentException("User email is required");
+        }
+        
+        return applicationHandler.findByUserPaginated(userEmail, page, size);
     }
 
     // =========================================================================

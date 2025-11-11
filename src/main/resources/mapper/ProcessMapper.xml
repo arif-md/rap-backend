@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="x.y.z.backend.repository.mapper.ProcessMapper">
+
+    <!-- Result Map for Task -->
+    <resultMap id="TaskResultMap" type="x.y.z.backend.domain.model.Task">
+        <id property="id" column="id"/>
+        <result property="function" column="function"/>
+        <result property="task" column="task"/>
+        <result property="applicationNumber" column="application_number"/>
+        <result property="applicationName" column="application_name"/>
+        <result property="issuingOffice" column="issuing_office"/>
+        <result property="type" column="type"/>
+        <result property="status" column="status"/>
+        <result property="assignedTo" column="assigned_to"/>
+        <result property="dueDate" column="due_date"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="updatedBy" column="updated_by"/>
+    </resultMap>
+
+    <!-- Insert Task -->
+    <insert id="insert" parameterType="x.y.z.backend.domain.model.Task" 
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO task (
+            [function],
+            task,
+            application_number,
+            application_name,
+            issuing_office,
+            type,
+            status,
+            assigned_to,
+            due_date,
+            created_by,
+            updated_by
+        ) VALUES (
+            #{function},
+            #{task},
+            #{applicationNumber},
+            #{applicationName},
+            #{issuingOffice},
+            #{type},
+            #{status},
+            #{assignedTo},
+            #{dueDate},
+            #{createdBy},
+            #{updatedBy}
+        )
+    </insert>
+
+    <!-- Update Task -->
+    <update id="update" parameterType="x.y.z.backend.domain.model.Task">
+        UPDATE task
+        SET [function] = #{function},
+            task = #{task},
+            application_number = #{applicationNumber},
+            application_name = #{applicationName},
+            issuing_office = #{issuingOffice},
+            type = #{type},
+            status = #{status},
+            assigned_to = #{assignedTo},
+            due_date = #{dueDate},
+            updated_at = GETDATE(),
+            updated_by = #{updatedBy}
+        WHERE id = #{id}
+    </update>
+
+    <!-- Delete Task by ID -->
+    <delete id="deleteById">
+        DELETE FROM task WHERE id = #{id}
+    </delete>
+
+    <!-- Find Task by ID -->
+    <select id="findById" resultMap="TaskResultMap">
+        SELECT 
+            id,
+            [function],
+            task,
+            application_number,
+            application_name,
+            issuing_office,
+            type,
+            status,
+            assigned_to,
+            due_date,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM task
+        WHERE id = #{id}
+    </select>
+
+    <!-- Find All Tasks -->
+    <select id="findAll" resultMap="TaskResultMap">
+        SELECT 
+            id,
+            [function],
+            task,
+            application_number,
+            application_name,
+            issuing_office,
+            type,
+            status,
+            assigned_to,
+            due_date,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM task
+        ORDER BY due_date ASC, created_at DESC
+    </select>
+
+    <!-- Find Tasks by User with Pagination -->
+    <select id="findByUserPaginated" resultMap="TaskResultMap">
+        SELECT 
+            id,
+            [function],
+            task,
+            application_number,
+            application_name,
+            issuing_office,
+            type,
+            status,
+            assigned_to,
+            due_date,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM task
+        WHERE assigned_to = #{assignedTo}
+        ORDER BY due_date ASC, created_at DESC
+        OFFSET #{offset} ROWS
+        FETCH NEXT #{limit} ROWS ONLY
+    </select>
+
+    <!-- Count Tasks by User -->
+    <select id="countByUser" resultType="long">
+        SELECT COUNT(*) 
+        FROM task
+        WHERE assigned_to = #{assignedTo}
+    </select>
+
+    <!-- Find Tasks by Status -->
+    <select id="findByStatus" resultMap="TaskResultMap">
+        SELECT 
+            id,
+            function,
+            task,
+            application_number,
+            application_name,
+            issuing_office,
+            type,
+            status,
+            assigned_to,
+            due_date,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM task
+        WHERE status = #{status}
+        ORDER BY due_date ASC, created_at DESC
+    </select>
+
+    <!-- Find Tasks by Application Number -->
+    <select id="findByApplicationNumber" resultMap="TaskResultMap">
+        SELECT 
+            id,
+            function,
+            task,
+            application_number,
+            application_name,
+            issuing_office,
+            type,
+            status,
+            assigned_to,
+            due_date,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM task
+        WHERE application_number = #{applicationNumber}
+        ORDER BY due_date ASC, created_at DESC
+    </select>
+
+    <!-- Count Total Tasks -->
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM task
+    </select>
+
+</mapper>

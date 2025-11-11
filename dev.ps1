@@ -1,4 +1,41 @@
+# Show help for all commands
+function Help {
+    Write-Host "RAP Backend Development Scripts" -ForegroundColor Cyan
+    Write-Host "" 
+    Write-Host "Usage:" -ForegroundColor White
+    Write-Host "  ./dev.ps1 <Command> [Options]" -ForegroundColor White
+    Write-Host "" 
+    Write-Host "Commands:" -ForegroundColor Yellow
+    Write-Host "  Dev-Start           Start backend and database services" -ForegroundColor White
+    Write-Host "  Dev-Full            Start all services (full stack)" -ForegroundColor White
+    Write-Host "  Dev-Stop            Stop all services" -ForegroundColor White
+    Write-Host "  Dev-Restart         Restart all services" -ForegroundColor White
+    Write-Host "  Dev-Rebuild         Rebuild backend and restart" -ForegroundColor White
+    Write-Host "  Dev-Logs [service]  View logs for a service or all" -ForegroundColor White
+    Write-Host "  Image-Build [-NoCache]  Build backend Docker image (use -NoCache to force full rebuild)" -ForegroundColor White
+    Write-Host "  Image-Push          Push backend image to ACR" -ForegroundColor White
+    Write-Host "  DB-Init             Initialize database" -ForegroundColor White
+    Write-Host "  DB-Connect          Connect to database" -ForegroundColor White
+    Write-Host "  DB-Reset            Reset database (DANGEROUS)" -ForegroundColor White
+    Write-Host "  Clean               Clean up containers and networks" -ForegroundColor White
+    Write-Host "  Clean-All           Remove all containers, networks, and volumes" -ForegroundColor White
+    Write-Host "" 
+    Write-Host "Options:" -ForegroundColor Yellow
+    Write-Host "  -NoCache            (Image-Build only) Build Docker image without cache" -ForegroundColor White
+    Write-Host "" 
+    Write-Host "Examples:" -ForegroundColor Yellow
+    Write-Host "  ./dev.ps1 Image-Build           # Build backend image (uses cache)" -ForegroundColor White
+    Write-Host "  ./dev.ps1 Image-Build -NoCache  # Build backend image without cache (forces full rebuild)" -ForegroundColor White
+    Write-Host "" 
+    Write-Host "The -NoCache flag is recommended if you suspect Docker is not picking up code changes." -ForegroundColor Yellow
+}
 # RAP Backend Development Scripts
+#
+# Usage:
+#   ./dev.ps1 Image-Build           # Build backend image (uses cache)
+#   ./dev.ps1 Image-Build -NoCache  # Build backend image without cache (forces full rebuild)
+#
+# The -NoCache flag is recommended if you suspect Docker is not picking up code changes.
 # PowerShell automation for local development
 
 # Helper function to load environment variables from .env file
@@ -262,16 +299,24 @@ function Test {
 
 # Build Docker image
 function Image-Build {
+    param(
+        [switch]$NoCache
+    )
     # Load ACR server from .env
     Get-Content .env | ForEach-Object {
         if ($_ -match '^ACR_LOGIN_SERVER=(.+)$') {
             $acrServer = $matches[1]
         }
     }
-    
     Write-Host "Building Docker image..." -ForegroundColor Cyan
-    docker build -t ${acrServer}/rap-backend:dev .
-    
+    $args = @()
+    if ($NoCache.IsPresent) {
+        $args += '--no-cache'
+    }
+    $args += '-t'
+    $args += "${acrServer}/rap-backend:dev"
+    $args += '.'
+    docker build @args
     if ($LASTEXITCODE -eq 0) {
         Write-Host "✓ Image built: ${acrServer}/rap-backend:dev" -ForegroundColor Green
     } else {
@@ -375,6 +420,8 @@ function Show-Help {
 # Main execution
 if ($args.Count -eq 0) {
     Show-Help
+} elseif ($args[0] -eq 'Help') {
+    Help
 } else {
     $command = $args[0]
     $additionalArgs = $args[1..($args.Length-1)]
@@ -396,7 +443,7 @@ if ($args.Count -eq 0) {
         "Clean-All" { Clean-All }
         "Build" { Build }
         "Test" { Test }
-        "Image-Build" { Image-Build }
+    "Image-Build" { Image-Build @additionalArgs }
         "Image-Push" { Image-Push }
         "Image-Pull" { Image-Pull }
         "Help" { Show-Help }

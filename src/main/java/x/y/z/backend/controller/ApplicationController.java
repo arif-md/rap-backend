@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import x.y.z.backend.domain.dto.PageResponse;
 import x.y.z.backend.domain.model.Application;
 import x.y.z.backend.dto.ApplicationResponse;
 import x.y.z.backend.dto.CreateApplicationRequest;
@@ -205,6 +206,37 @@ public class ApplicationController {
     }
 
     /**
+     * Get applications for the current user with pagination.
+     * GET /api/applications/my?page=0&size=10
+     */
+    @GetMapping("/my")
+    public ResponseEntity<PageResponse<ApplicationResponse>> getMyApplications(
+            @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
+            @RequestParam(name = "size", defaultValue = "10") @Min(1) int size) {
+        
+        // Extract current user from security context
+        String currentUser = getCurrentUsername();
+        
+        // Delegate to service
+        PageResponse<Application> applicationPage = applicationService.getApplicationsByUser(currentUser, page, size);
+        
+        // Convert domain models to DTOs
+        List<ApplicationResponse> content = applicationPage.getContent().stream()
+            .map(dtoMapper::toDto)
+            .collect(Collectors.toList());
+        
+        // Build PageResponse with DTO content
+        PageResponse<ApplicationResponse> response = new PageResponse<>(
+            content,
+            applicationPage.getPage(),
+            applicationPage.getSize(),
+            applicationPage.getTotalElements()
+        );
+        
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Extract current username from Spring Security context.
      * Returns "anonymous" if not authenticated (for testing with security disabled).
      */
@@ -213,6 +245,14 @@ public class ApplicationController {
         
         if (authentication != null && authentication.isAuthenticated() 
             && !"anonymousUser".equals(authentication.getPrincipal())) {
+            Object principal = authentication.getPrincipal();
+            
+            // Handle UserPrincipal from JWT authentication
+            if (principal instanceof x.y.z.backend.security.JwtAuthenticationFilter.UserPrincipal) {
+                return ((x.y.z.backend.security.JwtAuthenticationFilter.UserPrincipal) principal).getEmail();
+            }
+            
+            // Fallback to getName() for other authentication types (OIDC, etc.)
             return authentication.getName();
         }
         
