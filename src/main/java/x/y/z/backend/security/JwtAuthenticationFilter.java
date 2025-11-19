@@ -13,6 +13,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import x.y.z.backend.config.CurrentUser;
 import x.y.z.backend.service.JwtTokenService;
 
 import java.io.IOException;
@@ -111,7 +113,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     /**
      * UserPrincipal - Represents authenticated user in Spring Security context
      */
-    public static class UserPrincipal {
+    public static class UserPrincipal implements CurrentUser {
         private final UUID userId;
         private final String email;
         private final List<String> roles;

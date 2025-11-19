@@ -5,6 +5,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import x.y.z.backend.config.CurrentUser;
 import x.y.z.backend.domain.dto.PageResponse;
 import x.y.z.backend.domain.model.Task;
 import x.y.z.backend.service.ProcessService;
@@ -40,10 +42,11 @@ public class WorkflowController {
     @GetMapping("/tasks")
     public ResponseEntity<PageResponse<Task>> getMyTasks(
             @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
-            @RequestParam(name = "size", defaultValue = "10") @Min(1) int size) {
+            @RequestParam(name = "size", defaultValue = "10") @Min(1) int size,
+            CurrentUser user) {
         
         // Extract current user from security context
-        String currentUser = getCurrentUsername();
+        String currentUser = user.getEmail();
         
         // Delegate to service
         PageResponse<Task> taskPage = processService.getTasksByUser(currentUser, page, size);
@@ -67,7 +70,7 @@ public class WorkflowController {
      * Extract current authenticated username from Security Context.
      * Returns "anonymous" if not authenticated (for testing with security disabled).
      */
-    private String getCurrentUsername() {
+    /*private String getCurrentUsername() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         
         if (authentication != null && authentication.isAuthenticated() 
@@ -84,5 +87,5 @@ public class WorkflowController {
         }
         
         return "anonymous";
-    }
+    }*/
 }

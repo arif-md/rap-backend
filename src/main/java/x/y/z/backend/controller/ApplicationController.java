@@ -2,11 +2,16 @@ package x.y.z.backend.controller;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import x.y.z.backend.config.CurrentUser;
 import x.y.z.backend.domain.dto.PageResponse;
 import x.y.z.backend.domain.model.Application;
 import x.y.z.backend.dto.ApplicationResponse;
@@ -41,6 +46,7 @@ public class ApplicationController {
 
     private final ApplicationService applicationService;
     private final ApplicationDtoMapper dtoMapper;
+    private static final Logger logger = LoggerFactory.getLogger(ApplicationController.class);
 
     public ApplicationController(ApplicationService applicationService, ApplicationDtoMapper dtoMapper) {
         this.applicationService = applicationService;
@@ -53,10 +59,12 @@ public class ApplicationController {
      */
     @PostMapping
     public ResponseEntity<ApplicationResponse> createApplication(
-            @Valid @RequestBody CreateApplicationRequest request) {
+            @Valid @RequestBody CreateApplicationRequest request, CurrentUser user) {
         
         // Extract current user from security context
-        String currentUser = getCurrentUsername();
+        String currentUser = user.getEmail();
+
+        logger.info("Received email :: {}", currentUser);
         
         // Convert DTO to domain model
         Application application = dtoMapper.toEntity(request, currentUser);
@@ -77,10 +85,10 @@ public class ApplicationController {
     @PutMapping("/{id}")
     public ResponseEntity<ApplicationResponse> updateApplication(
             @PathVariable @Min(1) Long id,
-            @Valid @RequestBody UpdateApplicationRequest request) {
+            @Valid @RequestBody UpdateApplicationRequest request, CurrentUser user) {
         
         // Extract current user from security context
-        String currentUser = getCurrentUsername();
+        String currentUser = user.getEmail();
         
         // Convert DTO to domain model
         Application application = dtoMapper.toEntity(id, request, currentUser);
@@ -212,10 +220,11 @@ public class ApplicationController {
     @GetMapping("/my")
     public ResponseEntity<PageResponse<ApplicationResponse>> getMyApplications(
             @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
-            @RequestParam(name = "size", defaultValue = "10") @Min(1) int size) {
+            @RequestParam(name = "size", defaultValue = "10") @Min(1) int size,
+            CurrentUser user) {
         
         // Extract current user from security context
-        String currentUser = getCurrentUsername();
+        String currentUser = user.getEmail();
         
         // Delegate to service
         PageResponse<Application> applicationPage = applicationService.getApplicationsByUser(currentUser, page, size);
@@ -240,7 +249,7 @@ public class ApplicationController {
      * Extract current username from Spring Security context.
      * Returns "anonymous" if not authenticated (for testing with security disabled).
      */
-    private String getCurrentUsername() {
+    /*private String getCurrentUsername() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         
         if (authentication != null && authentication.isAuthenticated() 
@@ -257,5 +266,5 @@ public class ApplicationController {
         }
         
         return "anonymous";
-    }
+    }*/
 }
