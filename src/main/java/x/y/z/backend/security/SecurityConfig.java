@@ -119,8 +119,10 @@ public class SecurityConfig {
         // Allowed headers
         configuration.setAllowedHeaders(Arrays.asList("*"));
         
-        // Allow credentials (cookies)
-        configuration.setAllowCredentials(true);
+        // Allow credentials (cookies) only if not using wildcard origins
+        // Spring Boot doesn't allow allowCredentials=true with origins="*"
+        boolean isWildcardOrigin = Arrays.asList(allowedOrigins).contains("*");
+        configuration.setAllowCredentials(!isWildcardOrigin);
         
         // Expose headers to frontend
         configuration.setExposedHeaders(Arrays.asList("Authorization", "Set-Cookie"));
