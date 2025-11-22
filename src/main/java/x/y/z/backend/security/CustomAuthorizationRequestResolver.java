@@ -66,7 +66,7 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
         // Try common parameter names that might be configured
         String[] commonParams = {
             "acr_values", "prompt", "ui_locales", "login_hint", "display", 
-            "max_age", "claims", "id_token_hint", "nonce"
+            "max_age", "claims", "id_token_hint", "nonce", "response_type"
         };
         
         for (String paramName : commonParams) {
