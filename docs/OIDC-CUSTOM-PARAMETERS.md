@@ -34,14 +34,14 @@ OIDC_CLIENT_ID=your-client-id
 
 # Additional authorization request parameters
 # Spring Boot normalizes: OIDC_ADDL_REQ_PARAM_ACR_VALUES → oidc.addl.req.param.acr_values
-OIDC_ADDL_REQ_PARAM_ACR_VALUES=http://idmanagement.gov/ns/assurance/ial/2
+OIDC_ADDL_REQ_PARAM_ACR_VALUES=http://idmanagement.dev/ns/assurance/ial/2
 OIDC_ADDL_REQ_PARAM_PROMPT=login
 OIDC_ADDL_REQ_PARAM_UI_LOCALES=en
 ```
 
 This will add the following to the authorization request:
 ```
-?acr_values=http://idmanagement.gov/ns/assurance/ial/2
+?acr_values=http://idmanagement.dev/ns/assurance/ial/2
 &prompt=login
 &ui_locales=en
 ```
@@ -53,8 +53,10 @@ This will add the following to the authorization request:
 ```powershell
 cd infra
 
-# Set OIDC additional parameters as JSON object
-azd env set OIDC_ADDITIONAL_PARAMS '{"acr_values":"http://idmanagement.gov/ns/assurance/ial/2","prompt":"login"}'
+# Set individual OIDC additional parameters
+azd env set OIDC_ADDL_REQ_PARAM_ACR_VALUES "http://idmanagement.dev/ns/assurance/ial/2"
+azd env set OIDC_ADDL_REQ_PARAM_PROMPT "login"
+azd env set OIDC_ADDL_REQ_PARAM_RESPONSE_TYPE "code"
 
 # Deploy
 azd up
@@ -64,14 +66,18 @@ azd up
 
 **GitHub Repository Variables** (Settings → Secrets and variables → Actions → Variables):
 
-Add a new variable:
-- **Name**: `OIDC_ADDITIONAL_PARAMS`
-- **Value**: `{"acr_values":"http://idmanagement.gov/ns/assurance/ial/2","prompt":"login","ui_locales":"en"}`
+Add individual variables for each parameter you need:
 
-The JSON object will be converted to environment variables:
-- `OIDC_ADDL_REQ_PARAM_ACR_VALUES=http://idmanagement.gov/ns/assurance/ial/2`
-- `OIDC_ADDL_REQ_PARAM_PROMPT=login`
-- `OIDC_ADDL_REQ_PARAM_UI_LOCALES=en`
+- **Name**: `OIDC_ADDL_REQ_PARAM_ACR_VALUES`
+  - **Value**: `http://idmanagement.dev/ns/assurance/ial/2`
+
+- **Name**: `OIDC_ADDL_REQ_PARAM_PROMPT`
+  - **Value**: `login`
+
+- **Name**: `OIDC_ADDL_REQ_PARAM_RESPONSE_TYPE`
+  - **Value**: `code`
+
+The workflow will automatically set these in the azd environment, and they'll be passed to the backend container as environment variables.
 
 ## Supported Parameter Names
 
@@ -79,7 +85,7 @@ Common OIDC authorization request parameters:
 
 | Parameter | Description | Example Value |
 |-----------|-------------|---------------|
-| `acr_values` | Authentication Context Class Reference | `http://idmanagement.gov/ns/assurance/ial/2` |
+| `acr_values` | Authentication Context Class Reference | `http://idmanagement.dev/ns/assurance/ial/2` |
 | `prompt` | Controls user interaction | `login`, `consent`, `select_account`, `none` |
 | `ui_locales` | Preferred UI language | `en`, `es`, `fr` |
 | `login_hint` | Pre-fill username/email | `user@example.com` |
@@ -118,7 +124,7 @@ https://your-provider.com/oauth2/authorize
   &redirect_uri=https://your-backend/login/oauth2/code/oidc-provider
   &response_type=code
   &scope=openid%20profile%20email
-  &acr_values=http://idmanagement.gov/ns/assurance/ial/2  ← Your custom parameter
+  &acr_values=http://idmanagement.dev/ns/assurance/ial/2  ← Your custom parameter
   &prompt=login                                            ← Your custom parameter
   &code_challenge=...
   &code_challenge_method=S256
@@ -171,13 +177,19 @@ https://your-provider.com/oauth2/authorize
    - Adds configured parameters to every authorization request
 
 2. **`backend-springboot.bicep`**:
-   - Accepts `oidcAdditionalParams` object parameter
-   - Converts object to environment variables with correct prefix
-   - Example: `{"acr_values": "val"}` → `OIDC_ADDL_REQ_PARAM_ACR_VALUES=val`
+   - Accepts individual string parameters: `oidcAcrValues`, `oidcPrompt`, `oidcResponseType`
+   - Converts to environment variables with `OIDC_ADDL_REQ_PARAM_` prefix
+   - Example: `oidcAcrValues: "val"` → `OIDC_ADDL_REQ_PARAM_ACR_VALUES=val`
 
 3. **`main.parameters.json`**:
-   - Maps azd environment variable `OIDC_ADDITIONAL_PARAMS` to Bicep parameter
-   - Defaults to empty object `{}` if not set
+   - Maps azd environment variables to Bicep parameters
+   - Example: `${OIDC_ADDL_REQ_PARAM_ACR_VALUES=}` → `oidcAcrValues`
+   - Defaults to empty string if not set
+
+4. **`provision-infrastructure.yaml` (GitHub Actions)**:
+   - Reads GitHub repository variables: `OIDC_ADDL_REQ_PARAM_*`
+   - Sets them in azd environment with same names
+   - Bicep reads from azd environment
 
 ### Why This Design?
 
@@ -185,15 +197,15 @@ https://your-provider.com/oauth2/authorize
 - **Environment-specific**: Different parameters for local vs Azure
 - **Backwards compatible**: Works with standard OIDC providers (Keycloak) without any configuration
 - **Provider-agnostic**: Supports any OIDC provider's custom requirements
-- **Type-safe**: Bicep validates JSON object structure at deployment time
+- **Simple and maintainable**: No JSON parsing, just individual string variables
 
 ## Examples by OIDC Provider
 
-### Login.gov (Identity Sandbox)
+### Login.dev (Identity Sandbox)
 
 ```bash
 # backend/.env
-OIDC_ADDL_REQ_PARAM_ACR_VALUES=http://idmanagement.gov/ns/assurance/ial/2
+OIDC_ADDL_REQ_PARAM_ACR_VALUES=http://idmanagement.dev/ns/assurance/ial/2
 ```
 
 ### Azure AD B2C

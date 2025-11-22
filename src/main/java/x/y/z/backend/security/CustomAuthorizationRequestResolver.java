@@ -20,12 +20,12 @@ import java.util.Map;
  * 
  * Configuration via Environment Variables:
  * - Set environment variables with prefix: OIDC_ADDL_REQ_PARAM_
- * - Example: OIDC_ADDL_REQ_PARAM_ACR_VALUES=http://idmanagement.gov/ns/assurance/ial/2
+ * - Example: OIDC_ADDL_REQ_PARAM_ACR_VALUES=http://idmanagement.dev/ns/assurance/ial/2
  * - The parameter name will be: acr_values (converted to lowercase with underscores)
  * - If no OIDC_ADDL_REQ_PARAM_* variables are set, default behavior is used (no extra params)
  * 
  * Example Environment Variables:
- * - OIDC_ADDL_REQ_PARAM_ACR_VALUES=http://idmanagement.gov/ns/assurance/ial/2
+ * - OIDC_ADDL_REQ_PARAM_ACR_VALUES=http://idmanagement.dev/ns/assurance/ial/2
  * - OIDC_ADDL_REQ_PARAM_PROMPT=login
  * - OIDC_ADDL_REQ_PARAM_UI_LOCALES=en
  */
@@ -57,6 +57,16 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
     private Map<String, String> loadAdditionalParameters() {
         Map<String, String> params = new HashMap<>();
         
+        System.out.println("=== DEBUG: Checking OIDC Additional Parameters ===");
+        
+        // Debug: Check if environment variables exist directly
+        System.out.println("Direct env check - OIDC_ADDL_REQ_PARAM_ACR_VALUES: " + 
+            System.getenv("OIDC_ADDL_REQ_PARAM_ACR_VALUES"));
+        System.out.println("Direct env check - OIDC_ADDL_REQ_PARAM_PROMPT: " + 
+            System.getenv("OIDC_ADDL_REQ_PARAM_PROMPT"));
+        System.out.println("Direct env check - OIDC_ADDL_REQ_PARAM_RESPONSE_TYPE: " + 
+            System.getenv("OIDC_ADDL_REQ_PARAM_RESPONSE_TYPE"));
+        
         // Try common parameter names that might be configured
         String[] commonParams = {
             "acr_values", "prompt", "ui_locales", "login_hint", "display", 
@@ -69,13 +79,17 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
             String normalizedParamName = paramName.replace('_', '.');
             String propertyKey = PARAM_PREFIX + normalizedParamName;
             String value = environment.getProperty(propertyKey);
+            
+            System.out.println("Checking property: " + propertyKey + " = " + value);
+            
             if (value != null && !value.trim().isEmpty()) {
                 params.put(paramName, value);  // Use original name (acr_values) for OAuth2 request
-                System.out.println("Loaded OIDC param: " + paramName + " = " + value + " (from property: " + propertyKey + ")");
+                System.out.println("✓ Loaded OIDC param: " + paramName + " = " + value);
             }
         }
         
         System.out.println("Total OIDC additional params loaded: " + params.size());
+        System.out.println("=== END DEBUG ===");
         return params;
     }
 
