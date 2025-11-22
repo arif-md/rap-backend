@@ -103,7 +103,8 @@ function ACR-Login {
 function Dev-Start {
     Load-EnvFile
     Write-Host "Starting backend and database services..." -ForegroundColor Cyan
-    docker-compose up -d backend database
+    Write-Host "Building backend image locally..." -ForegroundColor Yellow
+    docker-compose up -d --build backend database
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host ""
@@ -121,7 +122,8 @@ function Dev-Start {
 function Dev-Full {
     Load-EnvFile
     Write-Host "Starting all services (full stack)..." -ForegroundColor Cyan
-    docker-compose --profile full-stack up -d
+    Write-Host "Building frontend and backend images locally..." -ForegroundColor Yellow
+    docker-compose --profile full-stack up -d --build
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host ""

@@ -154,14 +154,16 @@ The realm is now created and you'll be taken to the realm settings page.
 ### 4.2 Capability Config
 
 4. **Capability config** tab:
-   - **Client authentication**: `ON` (this is a confidential client)
+   - **Client authentication**: `OFF` (this is a public client using PKCE)
    - **Authorization**: `OFF`
    - **Authentication flow**: Check these boxes:
-     - ✅ Standard flow (Authorization Code Flow)
+     - ✅ Standard flow (Authorization Code Flow with PKCE)
      - ✅ Direct access grants
      - ❌ Implicit flow (not recommended)
      - ❌ Service accounts roles
    - Click **"Next"**
+
+**Important**: With **Client authentication OFF**, Keycloak automatically requires PKCE (Proof Key for Code Exchange) for security. This is the recommended approach for applications that cannot safely store secrets.
 
 ### 4.3 Login Settings
 
@@ -181,11 +183,7 @@ The realm is now created and you'll be taken to the realm settings page.
    - **Web origins**: `http://localhost:8080`
    - Click **"Save"**
 
-### 4.4 Get Client Secret
-
-6. After saving, click the **"Credentials"** tab
-7. Copy the **Client secret** value (you'll need this for the backend .env file)
-   - It will look like: `xK8Zv2pQmR5tYwA3sD6fG9hJ1kL4nM7oP0qT2uV5x`
+**Note**: Since we're using PKCE (Client authentication OFF), you don't need to copy a client secret. The backend Spring Security OAuth2 client will automatically generate and use PKCE code verifiers.
 
 ## Step 5: Configure Token Claims (Role Mapping)
 
@@ -373,24 +371,24 @@ LOGGING_LEVEL_ROOT=INFO
 LOGGING_LEVEL_BACKEND=DEBUG
 ```
 
-**Important**: Replace `OIDC_CLIENT_SECRET` with the actual secret from Step 4.4.
+**Note**: With PKCE authentication, you don't need `OIDC_CLIENT_SECRET`. The backend automatically generates code verifiers for each authentication request.
 
 ### 8.2 Verify application.properties (already configured)
 
-The backend's `src/main/resources/application.properties` should already have OIDC configuration.
+The backend's `src/main/resources/application.properties` should already have OIDC configuration with PKCE enabled.
 
 **Note**: The backend uses `application.properties` (not `.yml`). OIDC settings are configured via environment variables in `.env` and `docker-compose.yml`:
 
-- `OIDC_PROVIDER_ISSUER_URI` - Keycloak issuer URL
+- `OIDC_PROVIDER_ISSUER_URI` - Keycloak issuer URL (optional, if using explicit endpoints)
 - `OIDC_CLIENT_ID` - Client identifier
-- `OIDC_CLIENT_SECRET` - Client secret from Keycloak
+- **NO CLIENT SECRET NEEDED** - PKCE uses dynamically generated code verifiers
 - `FRONTEND_URL` - Allowed callback origin
 
-The Spring Boot application reads these environment variables at startup.
+The Spring Boot application reads these environment variables at startup and automatically uses PKCE when `client-authentication-method=none` is configured.
 
 ## Step 9: Restart the Backend
 
-Since you updated the `.env` file with the client secret, restart the backend to apply changes:
+Since you updated the configuration, restart the backend to apply changes:
 
 ### Using PowerShell dev.ps1
 
@@ -556,16 +554,32 @@ Token refresh successful
    ```
 3. Click **Save**
 
+### Issue: "PKCE validation failed" or "Code verifier required"
+
+**Cause**: Keycloak client is still configured for confidential authentication (Client authentication ON) instead of public client with PKCE
+
+**Fix**:
+1. Go to Keycloak Admin Console
+2. Navigate to **Clients** → **raptor-client** → **Settings** tab
+3. Set **Client authentication** to `OFF`
+4. Click **Save**
+5. Verify **Capability config** shows:
+   - Client authentication: `OFF`
+   - Standard flow enabled: `ON`
+
 ### Issue: "Client authentication failed"
 
-**Cause**: Client secret mismatch or client ID wrong
+**Cause**: Backend is still configured to send client secret, or Keycloak client still requires authentication
 
 **Fix**:
 1. Verify `OIDC_CLIENT_ID=raptor-client` in `.env`
-2. Get fresh client secret:
-   - Keycloak → Clients → `raptor-client` → Credentials tab
-   - Copy secret to `OIDC_CLIENT_SECRET` in `.env`
-3. Restart backend: `.\dev.ps1 Dev-Stop` then `.\dev.ps1 Dev-Start`
+2. **Remove** `OIDC_CLIENT_SECRET` from `.env` (PKCE doesn't use secrets)
+3. Verify `application.properties` has:
+   ```properties
+   spring.security.oauth2.client.registration.oidc-provider.client-authentication-method=none
+   ```
+4. Verify Keycloak client has **Client authentication = OFF**
+5. Restart backend: `.\dev.ps1 Dev-Stop` then `.\dev.ps1 Dev-Start`
 
 ### Issue: Database initialization failed (SQL Server timeout)
 
