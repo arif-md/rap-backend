@@ -38,7 +38,13 @@ public class UserService {
     public User getOrCreateUserFromOidc(OidcUser oidcUser) {
         String oidcSubject = oidcUser.getSubject();
         String email = oidcUser.getEmail();
+        
+        // oidcUser.getFullName() may be null if the OIDC provider doesn't return it
+        // Use email as fallback if fullName is not available
         String fullName = oidcUser.getFullName();
+        if (fullName == null || fullName.trim().isEmpty()) {
+            fullName = email; // Fallback to email if no name provided
+        }
 
         // Check if user already exists
         User existingUser = userHandler.findByOidcSubject(oidcSubject);
@@ -47,11 +53,17 @@ public class UserService {
             // Update last login time
             userHandler.updateLastLogin(existingUser.getId(), LocalDateTime.now());
             
-            // Update user info if changed
-            if (!email.equals(existingUser.getEmail()) || 
-                !fullName.equals(existingUser.getFullName())) {
-                existingUser.setEmail(email);
-                existingUser.setFullName(fullName);
+            // Update user info if changed (with null-safe comparison)
+            boolean emailChanged = email != null && !email.equals(existingUser.getEmail());
+            boolean nameChanged = fullName != null && !fullName.equals(existingUser.getFullName());
+            
+            if (emailChanged || nameChanged) {
+                if (email != null) {
+                    existingUser.setEmail(email);
+                }
+                if (fullName != null) {
+                    existingUser.setFullName(fullName);
+                }
                 userHandler.update(existingUser);
             }
             

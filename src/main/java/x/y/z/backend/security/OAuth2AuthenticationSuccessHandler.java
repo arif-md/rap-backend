@@ -119,10 +119,10 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     private Cookie createCookie(String name, String value, int maxAgeSeconds) {
         Cookie cookie = new Cookie(name, value);
         cookie.setHttpOnly(true);  // Prevent JavaScript access (XSS protection)
-        cookie.setSecure(false);    // Set to true in production with HTTPS
+        cookie.setSecure(true);     // Use secure cookies in production (HTTPS)
         cookie.setPath("/");        // Available for all paths
         cookie.setMaxAge(maxAgeSeconds);
-        cookie.setDomain("localhost"); // Set domain to allow cross-port cookie sharing
+        // Don't set domain - let browser default (works for both localhost and Azure)
         cookie.setAttribute("SameSite", "Lax");  // CSRF protection
         return cookie;
     }
