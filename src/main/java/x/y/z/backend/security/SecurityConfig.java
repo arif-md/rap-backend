@@ -34,6 +34,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final OAuth2AuthenticationSuccessHandler oauth2SuccessHandler;
     private final CustomOidcUserService customOidcUserService;
+    private final CustomAuthorizationRequestResolver authorizationRequestResolver;
     
     @Value("${cors.allowed-origins}")
     private String[] allowedOrigins;
@@ -41,10 +42,12 @@ public class SecurityConfig {
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
             OAuth2AuthenticationSuccessHandler oauth2SuccessHandler,
-            CustomOidcUserService customOidcUserService) {
+            CustomOidcUserService customOidcUserService,
+            CustomAuthorizationRequestResolver authorizationRequestResolver) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.oauth2SuccessHandler = oauth2SuccessHandler;
         this.customOidcUserService = customOidcUserService;
+        this.authorizationRequestResolver = authorizationRequestResolver;
     }
 
     @Bean
@@ -83,6 +86,9 @@ public class SecurityConfig {
             // OAuth2 Login configuration
             .oauth2Login(oauth2 -> oauth2
                 .loginPage("/auth/login")
+                .authorizationEndpoint(authorization -> authorization
+                    .authorizationRequestResolver(authorizationRequestResolver)
+                )
                 .userInfoEndpoint(userInfo -> userInfo
                     .oidcUserService(customOidcUserService)  // Use custom OIDC user service
                 )
