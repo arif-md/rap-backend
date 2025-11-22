@@ -52,16 +52,10 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
     /**
      * Load additional parameters from environment variables with prefix OIDC_ADDL_REQ_PARAM_
      * Environment variable format: OIDC_ADDL_REQ_PARAM_<PARAM_NAME>=<value>
-     * Spring normalizes to: oidc.addl.req.param.<param_name>
+     * Spring normalizes: OIDC_ADDL_REQ_PARAM_ACR_VALUES -> oidc.addl.req.param.acr.values
      */
     private Map<String, String> loadAdditionalParameters() {
         Map<String, String> params = new HashMap<>();
-        
-        // Iterate through all properties with the prefix
-        for (String propertyName : environment.getProperty("spring.config.activate.on-profile", "").split(",")) {
-            // This is a workaround - we'll check individual known properties
-            // Spring Boot doesn't provide direct way to enumerate all properties with prefix
-        }
         
         // Try common parameter names that might be configured
         String[] commonParams = {
@@ -70,13 +64,18 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
         };
         
         for (String paramName : commonParams) {
-            String propertyKey = PARAM_PREFIX + paramName.replace('_', '.');
+            // Spring Boot normalizes OIDC_ADDL_REQ_PARAM_ACR_VALUES to oidc.addl.req.param.acr.values
+            // So we need to convert acr_values -> acr.values for property lookup
+            String normalizedParamName = paramName.replace('_', '.');
+            String propertyKey = PARAM_PREFIX + normalizedParamName;
             String value = environment.getProperty(propertyKey);
             if (value != null && !value.trim().isEmpty()) {
-                params.put(paramName, value);
+                params.put(paramName, value);  // Use original name (acr_values) for OAuth2 request
+                System.out.println("Loaded OIDC param: " + paramName + " = " + value + " (from property: " + propertyKey + ")");
             }
         }
         
+        System.out.println("Total OIDC additional params loaded: " + params.size());
         return params;
     }
 
