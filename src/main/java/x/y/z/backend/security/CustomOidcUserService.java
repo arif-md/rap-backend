@@ -64,14 +64,34 @@ public class CustomOidcUserService extends OidcUserService {
         Set<GrantedAuthority> authorities = extractAuthorities(claims);
         logger.info("Extracted authorities: {}", authorities);
         
-        // Create OidcUser from ID Token claims only (no UserInfo call)
-        OidcUser oidcUser = new DefaultOidcUser(authorities, idToken, "preferred_username");
+        // Determine which claim to use as the principal name
+        // Different OIDC providers return different claims
+        String nameAttributeKey = determineNameAttributeKey(claims);
+        logger.info("Using '{}' as principal name attribute", nameAttributeKey);
         
-        logger.info("OIDC user loaded successfully: {} ({})", 
-            oidcUser.getPreferredUsername(), 
+        // Create OidcUser from ID Token claims only (no UserInfo call)
+        OidcUser oidcUser = new DefaultOidcUser(authorities, idToken, nameAttributeKey);
+        
+        logger.info("OIDC user loaded successfully: {} (subject: {})", 
+            claims.get(nameAttributeKey), 
             oidcUser.getSubject());
         
         return oidcUser;
+    }
+    
+    /**
+     * Determine which claim to use as the principal name attribute.
+     * Tries preferred_username first (Keycloak standard), falls back to email, then sub.
+     */
+    private String determineNameAttributeKey(Map<String, Object> claims) {
+        if (claims.containsKey("preferred_username") && claims.get("preferred_username") != null) {
+            return "preferred_username";
+        } else if (claims.containsKey("email") && claims.get("email") != null) {
+            return "email";
+        } else {
+            // sub (subject) is required by OIDC spec, always present
+            return "sub";
+        }
     }
     
     /**
