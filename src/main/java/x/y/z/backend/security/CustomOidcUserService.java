@@ -10,6 +10,8 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Component;
+
+import x.y.z.backend.domain.model.Role;
 import x.y.z.backend.domain.model.User;
 import x.y.z.backend.handler.UserHandler;
 
