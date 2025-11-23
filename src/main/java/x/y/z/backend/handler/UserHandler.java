@@ -103,6 +103,10 @@ public class UserHandler {
         userRoleMapper.delete(userId, roleId);
     }
 
+    public void clearUserRoles(UUID userId) {
+        userRoleMapper.deleteByUserId(userId);
+    }
+
     public boolean existsByOidcSubject(String oidcSubject) {
         return userMapper.findByOidcSubject(oidcSubject) != null;
     }

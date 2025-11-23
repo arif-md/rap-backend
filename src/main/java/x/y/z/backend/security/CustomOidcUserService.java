@@ -57,12 +57,13 @@ public class CustomOidcUserService extends OidcUserService {
         logger.info("User preferred_username: {}", claims.get("preferred_username"));
         logger.info("User email: {}", claims.get("email"));
         
-        // Sync user to database (create if doesn't exist, update last login if exists)
-        syncUserToDatabase(claims);
-        
         // Extract roles/authorities from ID Token
         Set<GrantedAuthority> authorities = extractAuthorities(claims);
         logger.info("Extracted authorities: {}", authorities);
+        
+        // Sync user to database (create if doesn't exist, update last login if exists)
+        // Also sync roles to database
+        syncUserToDatabase(claims, authorities);
         
         // Determine which claim to use as the principal name
         // Different OIDC providers return different claims
@@ -97,8 +98,9 @@ public class CustomOidcUserService extends OidcUserService {
     /**
      * Sync OIDC user to local database.
      * Creates user if doesn't exist, updates last login timestamp if exists.
+     * Also syncs roles to database.
      */
-    private void syncUserToDatabase(Map<String, Object> claims) {
+    private void syncUserToDatabase(Map<String, Object> claims, Set<GrantedAuthority> authorities) {
         String oidcSubject = (String) claims.get("sub");
         String email = (String) claims.get("email");
         String name = (String) claims.get("name");
@@ -111,21 +113,62 @@ public class CustomOidcUserService extends OidcUserService {
             // Check if user already exists
             User existingUser = userHandler.findByOidcSubject(oidcSubject);
             
+            User user;
             if (existingUser != null) {
                 // Update last login timestamp
                 logger.info("User exists in database: {} (ID: {})", existingUser.getEmail(), existingUser.getId());
                 userHandler.updateLastLogin(existingUser.getId(), LocalDateTime.now());
                 logger.debug("Updated last login for user: {}", existingUser.getEmail());
+                user = existingUser;
             } else {
                 // Create new user
                 User newUser = new User(oidcSubject, email, fullName);
-                User createdUser = userHandler.insert(newUser);
-                logger.info("Created new user in database: {} (ID: {})", createdUser.getEmail(), createdUser.getId());
+                user = userHandler.insert(newUser);
+                logger.info("Created new user in database: {} (ID: {})", user.getEmail(), user.getId());
             }
+            
+            // Sync roles to database
+            syncRolesToDatabase(user, authorities);
+            
         } catch (Exception e) {
             logger.error("Failed to sync user to database: {}", oidcSubject, e);
             // Don't throw exception - allow authentication to proceed even if DB sync fails
             // This ensures authentication continues to work even if database is temporarily unavailable
+        }
+    }
+    
+    /**
+     * Synchronize user roles to database.
+     * Clears existing roles and inserts new ones from authorities.
+     */
+    private void syncRolesToDatabase(User user, Set<GrantedAuthority> authorities) {
+        try {
+            logger.debug("Syncing roles to database for user: {}", user.getEmail());
+            
+            // Clear existing roles
+            userHandler.clearUserRoles(user.getId());
+            logger.debug("Cleared existing roles for user: {}", user.getEmail());
+            
+            // Add each role from authorities
+            for (GrantedAuthority authority : authorities) {
+                String authorityName = authority.getAuthority();
+                // Remove "ROLE_" prefix to get the role name
+                String roleName = authorityName.startsWith("ROLE_") ? 
+                    authorityName.substring(5) : authorityName;
+                
+                Role role = userHandler.findRoleByName(roleName);
+                if (role != null) {
+                    userHandler.assignRole(user.getId(), role.getId(), "SYSTEM");
+                    logger.debug("Assigned role {} to user {}", roleName, user.getEmail());
+                } else {
+                    logger.warn("Role not found in database: {}", roleName);
+                }
+            }
+            
+            logger.info("Successfully synced {} roles to database for user: {}", authorities.size(), user.getEmail());
+        } catch (Exception e) {
+            logger.error("Failed to sync roles for user: {}", user.getId(), e);
+            // Don't throw exception - allow authentication to proceed even if role sync fails
         }
     }
     
@@ -167,6 +210,12 @@ public class CustomOidcUserService extends OidcUserService {
                     }
                 }
             });
+        }
+        
+        // If no roles from OIDC provider (only default ROLE_USER), default to ROLE_EXTERNAL_USER
+        if (authorities.size() == 1 && authorities.stream().allMatch(a -> a.getAuthority().equals("ROLE_USER"))) {
+            logger.info("No specific roles from OIDC provider, defaulting to ROLE_EXTERNAL_USER");
+            authorities.add(new SimpleGrantedAuthority("ROLE_EXTERNAL_USER"));
         }
         
         return authorities;
