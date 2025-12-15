@@ -6,21 +6,21 @@
 -- transaction boundaries or other transient issues.
 
 -- Assign USER role to all users who don't have any roles
-INSERT INTO user_roles (id, user_id, role_id, granted_by)
+INSERT INTO RAP.user_roles (id, user_id, role_id, granted_by)
 SELECT 
     NEWID() AS id,
     u.id AS user_id,
-    (SELECT id FROM roles WHERE role_name = 'USER') AS role_id,
+    (SELECT id FROM RAP.roles WHERE role_name = 'USER') AS role_id,
     'MIGRATION_V12' AS granted_by
-FROM users u
+FROM RAP.users u
 WHERE NOT EXISTS (
-    SELECT 1 FROM user_roles ur WHERE ur.user_id = u.id
+    SELECT 1 FROM RAP.user_roles ur WHERE ur.user_id = u.id
 );
 
 -- Display count of users who received the default role
 SELECT 
     COUNT(*) AS users_assigned_default_role
-FROM users u
+FROM RAP.users u
 WHERE NOT EXISTS (
-    SELECT 1 FROM user_roles ur WHERE ur.user_id = u.id
+    SELECT 1 FROM RAP.user_roles ur WHERE ur.user_id = u.id
 );

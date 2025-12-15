@@ -12,7 +12,7 @@
 -- 1. USERS TABLE
 -- ===================================================================
 -- Stores authenticated users from OIDC provider
-CREATE TABLE users (
+CREATE TABLE RAP.users (
     id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
     
     -- OIDC Claims
@@ -38,7 +38,7 @@ CREATE TABLE users (
 -- 2. ROLES TABLE
 -- ===================================================================
 -- Application roles for authorization
-CREATE TABLE roles (
+CREATE TABLE RAP.roles (
     id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
     role_name NVARCHAR(50) NOT NULL UNIQUE,       -- e.g., 'USER', 'ADMIN', 'MANAGER'
     description NVARCHAR(255),
@@ -51,7 +51,7 @@ CREATE TABLE roles (
 -- 3. USER_ROLES TABLE (Many-to-Many)
 -- ===================================================================
 -- Maps users to their assigned roles
-CREATE TABLE user_roles (
+CREATE TABLE RAP.user_roles (
     id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
     user_id UNIQUEIDENTIFIER NOT NULL,
     role_id UNIQUEIDENTIFIER NOT NULL,
@@ -59,9 +59,9 @@ CREATE TABLE user_roles (
     granted_by NVARCHAR(255),                     -- Admin who granted the role (for audit)
     
     CONSTRAINT FK_user_roles_user FOREIGN KEY (user_id) 
-        REFERENCES users(id) ON DELETE CASCADE,
+        REFERENCES RAP.users(id) ON DELETE CASCADE,
     CONSTRAINT FK_user_roles_role FOREIGN KEY (role_id) 
-        REFERENCES roles(id) ON DELETE CASCADE,
+        REFERENCES RAP.roles(id) ON DELETE CASCADE,
     CONSTRAINT UQ_user_role UNIQUE (user_id, role_id),
     
     INDEX IX_user_roles_user_id (user_id),
@@ -72,7 +72,7 @@ CREATE TABLE user_roles (
 -- 4. REFRESH_TOKENS TABLE
 -- ===================================================================
 -- Stores refresh tokens for session extension without re-authentication
-CREATE TABLE refresh_tokens (
+CREATE TABLE RAP.refresh_tokens (
     id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
     token_hash NVARCHAR(255) NOT NULL UNIQUE,     -- SHA-256 hash of refresh token (never store plain token)
     user_id UNIQUEIDENTIFIER NOT NULL,
@@ -92,7 +92,7 @@ CREATE TABLE refresh_tokens (
     revoked_reason NVARCHAR(255),                 -- 'LOGOUT', 'SECURITY_BREACH', 'PASSWORD_CHANGE'
     
     CONSTRAINT FK_refresh_tokens_user FOREIGN KEY (user_id) 
-        REFERENCES users(id) ON DELETE CASCADE,
+        REFERENCES RAP.users(id) ON DELETE CASCADE,
     
     INDEX IX_refresh_tokens_token_hash (token_hash),
     INDEX IX_refresh_tokens_user_id (user_id),
@@ -104,7 +104,7 @@ CREATE TABLE refresh_tokens (
 -- ===================================================================
 -- Tracks revoked JWT tokens for immediate invalidation
 -- Note: Only needed if you want instant JWT revocation before natural expiration
-CREATE TABLE revoked_tokens (
+CREATE TABLE RAP.revoked_tokens (
     id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
     jti NVARCHAR(255) NOT NULL UNIQUE,            -- JWT ID from token claim
     user_id UNIQUEIDENTIFIER NOT NULL,
@@ -116,7 +116,7 @@ CREATE TABLE revoked_tokens (
     revoked_by NVARCHAR(255),                     -- Who/what revoked it
     
     CONSTRAINT FK_revoked_tokens_user FOREIGN KEY (user_id) 
-        REFERENCES users(id) ON DELETE CASCADE,
+        REFERENCES RAP.users(id) ON DELETE CASCADE,
     
     INDEX IX_revoked_tokens_jti (jti),
     INDEX IX_revoked_tokens_user_id (user_id),
@@ -127,7 +127,7 @@ CREATE TABLE revoked_tokens (
 -- 6. SEED DATA - Default Roles
 -- ===================================================================
 -- Insert standard application roles
-INSERT INTO roles (id, role_name, description) VALUES
+INSERT INTO RAP.roles (id, role_name, description) VALUES
     (NEWID(), 'USER', 'Basic authenticated user with read access'),
     (NEWID(), 'MANAGER', 'Manager with read/write access to managed entities'),
     (NEWID(), 'ADMIN', 'System administrator with full access');
@@ -141,7 +141,7 @@ DECLARE @testUserId UNIQUEIDENTIFIER = NEWID();
 DECLARE @userRoleId UNIQUEIDENTIFIER;
 
 -- Insert test user
-INSERT INTO users (id, oidc_subject, email, full_name, is_active)
+INSERT INTO RAP.users (id, oidc_subject, email, full_name, is_active)
 VALUES (
     @testUserId,
     'test|local-dev-user',                        -- Fake OIDC subject for local testing
@@ -151,8 +151,8 @@ VALUES (
 );
 
 -- Assign USER role to test user
-SELECT @userRoleId = id FROM roles WHERE role_name = 'USER';
-INSERT INTO user_roles (id, user_id, role_id, granted_by)
+SELECT @userRoleId = id FROM RAP.roles WHERE role_name = 'USER';
+INSERT INTO RAP.user_roles (id, user_id, role_id, granted_by)
 VALUES (NEWID(), @testUserId, @userRoleId, 'SYSTEM_SEED');
 
 -- ===================================================================
@@ -161,10 +161,10 @@ VALUES (NEWID(), @testUserId, @userRoleId, 'SYSTEM_SEED');
 -- These should be run periodically to clean up expired tokens
 
 -- Clean up expired refresh tokens (older than 30 days)
--- DELETE FROM refresh_tokens WHERE expires_at < DATEADD(day, -30, GETUTCDATE());
+-- DELETE FROM RAP.refresh_tokens WHERE expires_at < DATEADD(day, -30, GETUTCDATE());
 
 -- Clean up expired revoked JWT tokens (no longer needed after natural expiration)
--- DELETE FROM revoked_tokens WHERE expires_at < GETUTCDATE();
+-- DELETE FROM RAP.revoked_tokens WHERE expires_at < GETUTCDATE();
 
 -- ===================================================================
 -- Migration Complete

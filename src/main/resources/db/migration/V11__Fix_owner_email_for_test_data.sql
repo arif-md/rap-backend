@@ -6,19 +6,19 @@
 -- =============================================================================
 
 -- Update Applications - the /my endpoint filters WHERE owner_email = user
-UPDATE application 
+UPDATE RAP.application 
 SET owner_email = 'user@raptor.local',
     owner_name = 'Test User'
 WHERE owner_email NOT IN ('user@raptor.local');
 
 -- Update Tasks - assuming similar filter
-UPDATE task 
+UPDATE RAP.task 
 SET created_by = 'user@raptor.local', 
     updated_by = 'user@raptor.local'
 WHERE created_by = 'system';
 
 -- Update Permits - assuming similar filter  
-UPDATE permit 
+UPDATE RAP.permit 
 SET created_by = 'user@raptor.local', 
     updated_by = 'user@raptor.local'
 WHERE created_by = 'system';

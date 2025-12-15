@@ -10,7 +10,7 @@
 -- =====================
 -- Insert 30 application records for pagination testing
 
-INSERT INTO application (application_name, application_code, description, status, owner_name, owner_email, created_by, updated_by)
+INSERT INTO RAP.application (application_name, application_code, description, status, owner_name, owner_email, created_by, updated_by)
 VALUES 
 -- Active Applications (20 records)
 ('Enterprise Resource Planning', 'ERP-2025-001', 'Comprehensive ERP system for business management', 'ACTIVE', 'John Smith', 'john.smith@company.com', 'system', 'system'),
@@ -56,7 +56,7 @@ VALUES
 -- =====================
 -- Insert 35 additional task records (total with V8 will be 40+)
 
-INSERT INTO task ([function], task, application_number, application_name, issuing_office, type, status, assigned_to, due_date, created_by, updated_by)
+INSERT INTO RAP.task ([function], task, application_number, application_name, issuing_office, type, status, assigned_to, due_date, created_by, updated_by)
 VALUES 
 -- Pending Tasks (15 records)
 ('Review', 'Review license application documents', 'APP-2025-006', 'Business License Application', 'Licensing Department', 'APPROVAL', 'PENDING', NULL, DATEADD(DAY, 8, GETDATE()), 'system', 'system'),
@@ -111,11 +111,11 @@ VALUES
 -- These permits will be assigned to the first user in the system
 
 DECLARE @firstUserId UNIQUEIDENTIFIER;
-SET @firstUserId = (SELECT TOP 1 id FROM users ORDER BY created_at);
+SET @firstUserId = (SELECT TOP 1 id FROM RAP.users ORDER BY created_at);
 
 IF @firstUserId IS NOT NULL
 BEGIN
-    INSERT INTO permit (permit_number, permit_type, status, issue_date, expiry_date, holder_id, description, created_by, updated_by)
+    INSERT INTO RAP.permit (permit_number, permit_type, status, issue_date, expiry_date, holder_id, description, created_by, updated_by)
     VALUES 
     -- Active Permits (20 records)
     ('PER-2025-006', 'Construction Permit', 'ACTIVE', DATEADD(MONTH, -2, GETDATE()), DATEADD(YEAR, 1, GETDATE()), @firstUserId, 'Commercial building construction permit', 'system', 'system'),

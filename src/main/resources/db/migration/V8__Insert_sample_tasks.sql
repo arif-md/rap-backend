@@ -3,7 +3,7 @@
 -- After login, you can assign them using: UPDATE task SET assigned_to = 'YOUR-USER-UUID-HERE'
 
 -- Sample tasks
-INSERT INTO task ([function], task, application_number, application_name, issuing_office, type, status, assigned_to, due_date, created_by, updated_by)
+INSERT INTO RAP.task ([function], task, application_number, application_name, issuing_office, type, status, assigned_to, due_date, created_by, updated_by)
 VALUES 
 ('Review', 'Review application documents', 'APP-2025-001', 'Building Permit Application', 'Planning Department', 'APPROVAL', 'PENDING', NULL, DATEADD(DAY, 5, GETDATE()), 'system', 'system'),
 ('Inspection', 'Conduct site inspection', 'APP-2025-002', 'Environmental Clearance', 'Environmental Office', 'INSPECTION', 'IN_PROGRESS', NULL, DATEADD(DAY, 3, GETDATE()), 'system', 'system'),
@@ -13,4 +13,4 @@ VALUES
 
 -- To assign tasks to yourself after login, find your user ID and run:
 -- SELECT id, email FROM [user];
--- UPDATE task SET assigned_to = 'YOUR-USER-UUID-HERE' WHERE assigned_to IS NULL;
+-- UPDATE RAP.task SET assigned_to = 'YOUR-USER-UUID-HERE' WHERE assigned_to IS NULL;

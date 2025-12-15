@@ -1,5 +1,5 @@
 -- Create task table for workflow tasks
-CREATE TABLE task (
+CREATE TABLE RAP.task (
     id BIGINT IDENTITY(1,1) PRIMARY KEY,
     [function] NVARCHAR(255) NOT NULL,
     task NVARCHAR(500) NOT NULL,
@@ -17,10 +17,10 @@ CREATE TABLE task (
 );
 
 -- Create index for assigned_to for faster queries
-CREATE INDEX IDX_task_assigned_to ON task(assigned_to);
+CREATE INDEX IDX_task_assigned_to ON RAP.task(assigned_to);
 
 -- Create index for status for faster filtering
-CREATE INDEX IDX_task_status ON task(status);
+CREATE INDEX IDX_task_status ON RAP.task(status);
 
 -- Create index for due_date for sorting
-CREATE INDEX IDX_task_due_date ON task(due_date);
+CREATE INDEX IDX_task_due_date ON RAP.task(due_date);

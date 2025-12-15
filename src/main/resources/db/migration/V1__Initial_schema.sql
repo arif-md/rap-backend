@@ -1,74 +1,64 @@
 -- =============================================================================
 -- Flyway Migration V1: Initial Schema
 -- =============================================================================
--- This migration creates the initial database schema for the RAP application.
+-- This migration creates the RAP schema and initial database schema.
 -- It runs automatically on first startup (both Azure and local Docker).
+--
+-- Schema isolation:
+-- - RAP schema: Backend application tables (users, applications, tasks, etc.)
+-- - JBPM schema: Process engine tables (managed by processes service)
 --
 -- Flyway tracks which migrations have run in the flyway_schema_history table.
 -- =============================================================================
 
--- Example: Users table
-CREATE TABLE users (
-    id BIGINT IDENTITY(1,1) PRIMARY KEY,
-    username NVARCHAR(100) NOT NULL UNIQUE,
-    email NVARCHAR(255) NOT NULL UNIQUE,
-    created_at DATETIME2 NOT NULL DEFAULT GETDATE(),
-    updated_at DATETIME2 NOT NULL DEFAULT GETDATE(),
-    INDEX idx_username (username),
-    INDEX idx_email (email)
-);
+-- Create RAP schema if it doesn't exist
+IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'RAP')
+BEGIN
+    EXEC('CREATE SCHEMA RAP');
+    PRINT 'Created RAP schema';
+END
+ELSE
+BEGIN
+    PRINT 'RAP schema already exists';
+END
+GO
 
--- Example: Products table
-CREATE TABLE products (
-    id BIGINT IDENTITY(1,1) PRIMARY KEY,
-    name NVARCHAR(255) NOT NULL,
-    description NVARCHAR(MAX),
-    price DECIMAL(19,4) NOT NULL CHECK (price >= 0),
-    stock_quantity INT NOT NULL DEFAULT 0 CHECK (stock_quantity >= 0),
-    created_at DATETIME2 NOT NULL DEFAULT GETDATE(),
-    updated_at DATETIME2 NOT NULL DEFAULT GETDATE(),
-    INDEX idx_name (name)
-);
+-- Set RAP as default schema for sa user (local development)
+-- This allows MyBatis queries without explicit schema prefixes to work correctly
+IF EXISTS (SELECT * FROM sys.database_principals WHERE name = 'sa')
+BEGIN
+    ALTER USER sa WITH DEFAULT_SCHEMA = RAP;
+    PRINT 'Set RAP as default schema for sa user';
+END
+GO
 
--- Example: Orders table
-CREATE TABLE orders (
-    id BIGINT IDENTITY(1,1) PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    order_date DATETIME2 NOT NULL DEFAULT GETDATE(),
-    total_amount DECIMAL(19,4) NOT NULL CHECK (total_amount >= 0),
-    status NVARCHAR(50) NOT NULL DEFAULT 'PENDING',
-    created_at DATETIME2 NOT NULL DEFAULT GETDATE(),
-    updated_at DATETIME2 NOT NULL DEFAULT GETDATE(),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_user_id (user_id),
-    INDEX idx_order_date (order_date),
-    INDEX idx_status (status)
-);
+-- Set RAP as default schema for Azure managed identity (if exists)
+-- The managed identity principal name varies, so we check for common patterns
+DECLARE @principalName NVARCHAR(128);
+DECLARE @sql NVARCHAR(MAX);
 
--- Example: Order Items table
-CREATE TABLE order_items (
-    id BIGINT IDENTITY(1,1) PRIMARY KEY,
-    order_id BIGINT NOT NULL,
-    product_id BIGINT NOT NULL,
-    quantity INT NOT NULL CHECK (quantity > 0),
-    unit_price DECIMAL(19,4) NOT NULL CHECK (unit_price >= 0),
-    created_at DATETIME2 NOT NULL DEFAULT GETDATE(),
-    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id),
-    INDEX idx_order_id (order_id),
-    INDEX idx_product_id (product_id)
-);
+SELECT TOP 1 @principalName = name 
+FROM sys.database_principals 
+WHERE type IN ('E', 'X') -- External user or External group
+  AND is_fixed_role = 0
+  AND name NOT IN ('guest', 'dbo', 'INFORMATION_SCHEMA', 'sys', 'sa');
 
--- Insert sample data
-INSERT INTO users (username, email) VALUES
-    ('admin', 'admin@raptor.com'),
-    ('john.doe', 'john.doe@example.com'),
-    ('jane.smith', 'jane.smith@example.com');
+IF @principalName IS NOT NULL
+BEGIN
+    SET @sql = 'ALTER USER [' + @principalName + '] WITH DEFAULT_SCHEMA = RAP';
+    EXEC sp_executesql @sql;
+    PRINT 'Set RAP as default schema for managed identity: ' + @principalName;
+END
+GO
 
-INSERT INTO products (name, description, price, stock_quantity) VALUES
-    ('Widget A', 'High-quality widget for general use', 29.99, 100),
-    ('Widget B', 'Premium widget with advanced features', 49.99, 50),
-    ('Gadget X', 'Innovative gadget for modern applications', 99.99, 25);
+-- From this point, all tables will be created in RAP schema
+-- Note: We explicitly qualify with RAP. to ensure correct schema regardless of connection defaults
+
+-- Actual application tables are created in subsequent migrations:
+-- - V2: Application table
+-- - V5: Authentication tables (users, roles, tokens)
+-- - V6: Task table
+-- - V7: Permit table
 
 -- Success message
-PRINT 'Initial schema created successfully!';
+PRINT 'RAP schema created successfully!';

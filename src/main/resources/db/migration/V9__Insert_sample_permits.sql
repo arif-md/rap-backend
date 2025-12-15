@@ -3,12 +3,12 @@
 -- Permits will be assigned to the first user in the database
 
 DECLARE @firstUserId UNIQUEIDENTIFIER;
-SET @firstUserId = (SELECT TOP 1 id FROM users);
+SET @firstUserId = (SELECT TOP 1 id FROM RAP.users);
 
 -- Only insert permits if a user exists
 IF @firstUserId IS NOT NULL
 BEGIN
-    INSERT INTO permit (permit_number, permit_type, status, issue_date, expiry_date, holder_id, description, created_by, updated_by)
+    INSERT INTO RAP.permit (permit_number, permit_type, status, issue_date, expiry_date, holder_id, description, created_by, updated_by)
     VALUES 
     ('PER-2024-001', 'Building Permit', 'ACTIVE', DATEADD(MONTH, -6, GETDATE()), DATEADD(MONTH, 6, GETDATE()), @firstUserId, 'Residential construction permit for 2-story building', 'system', 'system'),
     ('PER-2024-002', 'Environmental Clearance', 'ACTIVE', DATEADD(MONTH, -3, GETDATE()), DATEADD(YEAR, 1, GETDATE()), @firstUserId, 'Environmental compliance certificate', 'system', 'system'),
