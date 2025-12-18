@@ -261,17 +261,27 @@ public class AuthController {
             response.addCookie(idTokenCookie);
 
             // Build OIDC logout URL (RP-Initiated Logout)
-            // This terminates the session at the OIDC provider (Keycloak)
+            // This terminates the session at the OIDC provider
             String oidcLogoutUrl = null;
-            if (oidcEndSessionEndpoint != null && !oidcEndSessionEndpoint.isEmpty() && idToken != null) {
+            if (oidcEndSessionEndpoint != null && !oidcEndSessionEndpoint.isEmpty() && oidcClientId != null) {
                 String postLogoutRedirectUri = frontendUrl + "/sign-in?logout=success";
-                oidcLogoutUrl = oidcEndSessionEndpoint + 
-                    "?id_token_hint=" + idToken +
-                    "&post_logout_redirect_uri=" + postLogoutRedirectUri;
-                logger.info("OIDC logout URL built with id_token_hint");
+                
+                // Build logout URL with client_id (required by most providers)
+                // Some providers also accept id_token_hint, but client_id is more universal
+                StringBuilder logoutUrlBuilder = new StringBuilder(oidcEndSessionEndpoint);
+                logoutUrlBuilder.append("?client_id=").append(oidcClientId);
+                logoutUrlBuilder.append("&post_logout_redirect_uri=").append(postLogoutRedirectUri);
+                
+                // Add id_token_hint if available (optional, some providers require it)
+                if (idToken != null) {
+                    logoutUrlBuilder.append("&id_token_hint=").append(idToken);
+                }
+                
+                oidcLogoutUrl = logoutUrlBuilder.toString();
+                logger.info("OIDC logout URL built with client_id: {}", oidcClientId);
             } else {
-                logger.warn("OIDC logout not available - endpoint: {}, idToken: {}", 
-                    oidcEndSessionEndpoint, (idToken != null ? "present" : "missing"));
+                logger.warn("OIDC logout not available - endpoint: {}, clientId: {}", 
+                    oidcEndSessionEndpoint, oidcClientId);
             }
 
             // Return success response with OIDC logout URL
