@@ -22,7 +22,7 @@
     <!-- Insert Application -->
     <insert id="insert" parameterType="x.y.z.backend.domain.model.Application" 
             useGeneratedKeys="true" keyProperty="id" keyColumn="id">
-        INSERT INTO application (
+        INSERT INTO RAP.application (
             application_name,
             application_code,
             description,
@@ -43,9 +43,9 @@
         )
     </insert>
 
-    <!-- Update Application -->
+    <!-- UPDATE RAP.application -->
     <update id="update" parameterType="x.y.z.backend.domain.model.Application">
-        UPDATE application
+        UPDATE RAP.application
         SET application_name = #{applicationName},
             description = #{description},
             status = #{status},
@@ -58,7 +58,7 @@
 
     <!-- Delete Application by ID -->
     <delete id="deleteById">
-        DELETE FROM application WHERE id = #{id}
+        DELETE FROM RAP.application WHERE id = #{id}
     </delete>
 
     <!-- Find Application by ID -->
@@ -75,7 +75,7 @@
             created_by,
             updated_at,
             updated_by
-        FROM application
+        FROM RAP.application
         WHERE id = #{id}
     </select>
 
@@ -93,7 +93,7 @@
             created_by,
             updated_at,
             updated_by
-        FROM application
+        FROM RAP.application
         WHERE application_code = #{applicationCode}
     </select>
 
@@ -111,7 +111,7 @@
             created_by,
             updated_at,
             updated_by
-        FROM application
+        FROM RAP.application
         ORDER BY created_at DESC
     </select>
 
@@ -129,7 +129,7 @@
             created_by,
             updated_at,
             updated_by
-        FROM application
+        FROM RAP.application
         WHERE status = #{status}
         ORDER BY created_at DESC
     </select>
@@ -148,20 +148,20 @@
             created_by,
             updated_at,
             updated_by
-        FROM application
+        FROM RAP.application
         WHERE application_name LIKE '%' + #{namePattern} + '%'
         ORDER BY application_name
     </select>
 
     <!-- Count Total Applications -->
     <select id="count" resultType="long">
-        SELECT COUNT(*) FROM application
+        SELECT COUNT(*) FROM RAP.application
     </select>
 
     <!-- Check if Application Code Exists -->
     <select id="existsByApplicationCode" resultType="boolean">
         SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END
-        FROM application
+        FROM RAP.application
         WHERE application_code = #{applicationCode}
     </select>
 
@@ -179,7 +179,7 @@
             created_by,
             updated_at,
             updated_by
-        FROM application
+        FROM RAP.application
         WHERE owner_email = #{userEmail}
         ORDER BY created_at DESC
         OFFSET #{offset} ROWS
@@ -189,7 +189,7 @@
     <!-- Count Applications by User -->
     <select id="countByUser" resultType="long">
         SELECT COUNT(*) 
-        FROM application
+        FROM RAP.application
         WHERE owner_email = #{userEmail}
     </select>
 

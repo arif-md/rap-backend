@@ -16,7 +16,7 @@
 
     <!-- Insert RevokedToken -->
     <insert id="insert" parameterType="x.y.z.backend.domain.model.RevokedToken">
-        INSERT INTO revoked_tokens (
+        INSERT INTO RAP.revoked_tokens (
             id,
             jti,
             user_id,
@@ -35,39 +35,39 @@
 
     <!-- Find RevokedToken by ID -->
     <select id="findById" resultMap="RevokedTokenResultMap">
-        SELECT * FROM revoked_tokens
+        SELECT * FROM RAP.revoked_tokens
         WHERE id = #{id}
     </select>
 
     <!-- Find RevokedToken by JTI -->
     <select id="findByJti" resultMap="RevokedTokenResultMap">
-        SELECT * FROM revoked_tokens
+        SELECT * FROM RAP.revoked_tokens
         WHERE jti = #{jti}
     </select>
 
     <!-- Check if Token is Revoked -->
     <select id="isRevoked" resultType="boolean">
         SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END
-        FROM revoked_tokens
+        FROM RAP.revoked_tokens
         WHERE jti = #{jti}
     </select>
 
     <!-- Find RevokedTokens by User ID -->
     <select id="findByUserId" resultMap="RevokedTokenResultMap">
-        SELECT * FROM revoked_tokens
+        SELECT * FROM RAP.revoked_tokens
         WHERE user_id = #{userId}
         ORDER BY revoked_at DESC
     </select>
 
     <!-- Delete Expired RevokedTokens -->
     <delete id="deleteExpired">
-        DELETE FROM revoked_tokens
+        DELETE FROM RAP.revoked_tokens
         WHERE expires_at &lt; #{currentTime}
     </delete>
 
     <!-- Delete RevokedToken by ID -->
     <delete id="deleteById">
-        DELETE FROM revoked_tokens
+        DELETE FROM RAP.revoked_tokens
         WHERE id = #{id}
     </delete>
 

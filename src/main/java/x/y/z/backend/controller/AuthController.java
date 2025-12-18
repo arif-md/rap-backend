@@ -3,6 +3,8 @@ package x.y.z.backend.controller;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,7 +33,10 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/auth")
+@CrossOrigin(origins = {"http://localhost:4200", "http://localhost:3000"}, allowCredentials = "true")
 public class AuthController {
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     private final UserService userService;
     private final JwtTokenService jwtTokenService;
@@ -45,6 +50,12 @@ public class AuthController {
     
     @Value("${jwt.refresh-token-expiration-days:7}")
     private long refreshTokenExpirationDays;
+    
+    @Value("${spring.security.oauth2.client.provider.oidc-provider.end-session-endpoint:}")
+    private String oidcEndSessionEndpoint;
+    
+    @Value("${spring.security.oauth2.client.registration.oidc-provider.client-id:}")
+    private String oidcClientId;
 
     public AuthController(
             UserService userService,
@@ -238,16 +249,36 @@ public class AuthController {
                 jwtTokenService.revokeRefreshToken(refreshToken);
             }
 
+            // Extract ID token for OIDC logout
+            String idToken = extractTokenFromCookie(request, "id_token");
+
             // Clear cookies
             Cookie accessTokenCookie = createCookie("access_token", "", 0);
             Cookie refreshTokenCookie = createCookie("refresh_token", "", 0);
+            Cookie idTokenCookie = createCookie("id_token", "", 0);
             response.addCookie(accessTokenCookie);
             response.addCookie(refreshTokenCookie);
+            response.addCookie(idTokenCookie);
 
-            // Return success response
+            // Build OIDC logout URL (RP-Initiated Logout)
+            // This terminates the session at the OIDC provider (Keycloak)
+            String oidcLogoutUrl = null;
+            if (oidcEndSessionEndpoint != null && !oidcEndSessionEndpoint.isEmpty() && idToken != null) {
+                String postLogoutRedirectUri = frontendUrl + "/sign-in?logout=success";
+                oidcLogoutUrl = oidcEndSessionEndpoint + 
+                    "?id_token_hint=" + idToken +
+                    "&post_logout_redirect_uri=" + postLogoutRedirectUri;
+                logger.info("OIDC logout URL built with id_token_hint");
+            } else {
+                logger.warn("OIDC logout not available - endpoint: {}, idToken: {}", 
+                    oidcEndSessionEndpoint, (idToken != null ? "present" : "missing"));
+            }
+
+            // Return success response with OIDC logout URL
             Map<String, Object> responseBody = new HashMap<>();
             responseBody.put("success", true);
             responseBody.put("message", "Logout successful");
+            responseBody.put("oidcLogoutUrl", oidcLogoutUrl); // Frontend should redirect here
 
             return ResponseEntity.ok(responseBody);
 

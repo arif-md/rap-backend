@@ -25,7 +25,7 @@
             SELECT NEWID()
         </selectKey>
         
-        INSERT INTO refresh_tokens (
+        INSERT INTO RAP.refresh_tokens (
             id,
             user_id,
             token_hash,
@@ -48,19 +48,19 @@
 
     <!-- Find RefreshToken by ID -->
     <select id="findById" resultMap="RefreshTokenResultMap">
-        SELECT * FROM refresh_tokens
+        SELECT * FROM RAP.refresh_tokens
         WHERE id = #{id}
     </select>
 
     <!-- Find RefreshToken by Token Hash -->
     <select id="findByTokenHash" resultMap="RefreshTokenResultMap">
-        SELECT * FROM refresh_tokens
+        SELECT * FROM RAP.refresh_tokens
         WHERE token_hash = #{tokenHash}
     </select>
 
     <!-- Find Active RefreshTokens by User ID -->
     <select id="findActiveByUserId" resultMap="RefreshTokenResultMap">
-        SELECT * FROM refresh_tokens
+        SELECT * FROM RAP.refresh_tokens
         WHERE user_id = #{userId}
           AND is_revoked = 0
           AND expires_at > GETUTCDATE()
@@ -69,14 +69,14 @@
 
     <!-- Find All RefreshTokens by User ID -->
     <select id="findByUserId" resultMap="RefreshTokenResultMap">
-        SELECT * FROM refresh_tokens
+        SELECT * FROM RAP.refresh_tokens
         WHERE user_id = #{userId}
         ORDER BY issued_at DESC
     </select>
 
     <!-- Revoke RefreshToken -->
     <update id="revoke">
-        UPDATE refresh_tokens
+        UPDATE RAP.refresh_tokens
         SET is_revoked = 1,
             revoked_at = #{revokedAt}
         WHERE id = #{id}
@@ -84,7 +84,7 @@
 
     <!-- Revoke All RefreshTokens for User -->
     <update id="revokeAllByUserId">
-        UPDATE refresh_tokens
+        UPDATE RAP.refresh_tokens
         SET is_revoked = 1,
             revoked_at = #{revokedAt}
         WHERE user_id = #{userId}
@@ -93,13 +93,13 @@
 
     <!-- Delete Expired RefreshTokens -->
     <delete id="deleteExpired">
-        DELETE FROM refresh_tokens
+        DELETE FROM RAP.refresh_tokens
         WHERE expires_at &lt; #{currentTime}
     </delete>
 
     <!-- Delete RefreshToken by ID -->
     <delete id="deleteById">
-        DELETE FROM refresh_tokens
+        DELETE FROM RAP.refresh_tokens
         WHERE id = #{id}
     </delete>
 

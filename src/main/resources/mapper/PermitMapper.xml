@@ -23,7 +23,7 @@
     <!-- Insert Permit -->
     <insert id="insert" parameterType="x.y.z.backend.domain.model.Permit" 
             useGeneratedKeys="true" keyProperty="id" keyColumn="id">
-        INSERT INTO permit (
+        INSERT INTO RAP.permit (
             permit_number,
             permit_type,
             status,
@@ -46,9 +46,9 @@
         )
     </insert>
 
-    <!-- Update Permit -->
+    <!-- UPDATE RAP.permit -->
     <update id="update" parameterType="x.y.z.backend.domain.model.Permit">
-        UPDATE permit
+        UPDATE RAP.permit
         SET permit_type = #{permitType},
             status = #{status},
             issue_date = #{issueDate},
@@ -62,7 +62,7 @@
 
     <!-- Delete Permit by ID -->
     <delete id="deleteById">
-        DELETE FROM permit WHERE id = #{id}
+        DELETE FROM RAP.permit WHERE id = #{id}
     </delete>
 
     <!-- Find Permit by ID -->
@@ -80,7 +80,7 @@
             created_by,
             updated_at,
             updated_by
-        FROM permit
+        FROM RAP.permit
         WHERE id = #{id}
     </select>
 
@@ -99,7 +99,7 @@
             created_by,
             updated_at,
             updated_by
-        FROM permit
+        FROM RAP.permit
         WHERE permit_number = #{permitNumber}
     </select>
 
@@ -118,7 +118,7 @@
             created_by,
             updated_at,
             updated_by
-        FROM permit
+        FROM RAP.permit
         ORDER BY issue_date DESC
     </select>
 
@@ -137,7 +137,7 @@
             created_by,
             updated_at,
             updated_by
-        FROM permit
+        FROM RAP.permit
         WHERE holder_id = #{holderId}
         ORDER BY issue_date DESC
         OFFSET #{offset} ROWS
@@ -147,7 +147,7 @@
     <!-- Count Permits by User -->
     <select id="countByUser" resultType="long">
         SELECT COUNT(*) 
-        FROM permit
+        FROM RAP.permit
         WHERE holder_id = #{holderId}
     </select>
 
@@ -166,7 +166,7 @@
             created_by,
             updated_at,
             updated_by
-        FROM permit
+        FROM RAP.permit
         WHERE status = #{status}
         ORDER BY issue_date DESC
     </select>
@@ -186,20 +186,20 @@
             created_by,
             updated_at,
             updated_by
-        FROM permit
+        FROM RAP.permit
         WHERE permit_type = #{permitType}
         ORDER BY issue_date DESC
     </select>
 
     <!-- Count Total Permits -->
     <select id="count" resultType="long">
-        SELECT COUNT(*) FROM permit
+        SELECT COUNT(*) FROM RAP.permit
     </select>
 
     <!-- Check if Permit Number Exists -->
     <select id="existsByPermitNumber" resultType="boolean">
         SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END
-        FROM permit
+        FROM RAP.permit
         WHERE permit_number = #{permitNumber}
     </select>
 

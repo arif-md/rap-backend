@@ -96,6 +96,17 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             response.addCookie(refreshTokenCookie);
             logger.debug("Refresh token cookie set");
 
+            // Store OIDC ID token for logout (same expiration as refresh token)
+            // This is required for OIDC RP-Initiated Logout (id_token_hint parameter)
+            String idToken = oidcUser.getIdToken().getTokenValue();
+            Cookie idTokenCookie = createCookie(
+                    "id_token",
+                    idToken,
+                    (int) (refreshTokenExpirationDays * 24 * 60 * 60) // Convert to seconds
+            );
+            response.addCookie(idTokenCookie);
+            logger.debug("ID token cookie set for OIDC logout");
+
             // Redirect to frontend auth callback component
             // This allows the frontend to fetch user details and handle navigation
             String redirectUrl = frontendUrl + "/auth-callback";

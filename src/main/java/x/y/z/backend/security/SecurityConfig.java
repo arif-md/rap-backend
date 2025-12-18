@@ -78,6 +78,7 @@ public class SecurityConfig {
                 .requestMatchers("/auth/login").permitAll()
                 .requestMatchers("/auth/callback").permitAll()
                 .requestMatchers("/auth/refresh").permitAll()
+                .requestMatchers("/auth/logout").permitAll()  // Allow logout without authentication
                 
                 // All other endpoints require authentication
                 .anyRequest().authenticated()
@@ -96,12 +97,8 @@ public class SecurityConfig {
                 .failureUrl("/auth/login?error=true")
             )
             
-            // Logout configuration
-            .logout(logout -> logout
-                .logoutUrl("/auth/logout")
-                .logoutSuccessUrl("/")
-                .deleteCookies("access_token", "refresh_token")
-            );
+            // Disable default logout - we handle it manually in AuthController
+            .logout(logout -> logout.disable());
 
         // Add JWT authentication filter before UsernamePasswordAuthenticationFilter
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
