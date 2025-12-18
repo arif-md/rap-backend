@@ -197,6 +197,37 @@ services:
       retries: 10
       start_period: 10s
 
+  # jBPM Process Service
+  process:
+    build:
+      context: ../processes
+      dockerfile: Dockerfile
+    container_name: raptor-process
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_DATASOURCE_URL: jdbc:sqlserver://host.docker.internal:1433;databaseName=raptordb;encrypt=true;trustServerCertificate=true
+      SPRING_DATASOURCE_USERNAME: jbpmuser
+      SPRING_DATASOURCE_PASSWORD: YourStrong@Passw0rd
+      FLYWAY_USER: sa
+      FLYWAY_PASSWORD: YourStrong@Passw0rd
+      KIESERVER_CORS_ALLOWED_ORIGINS: http://localhost:4200,http://localhost:3000
+      JBPM_HT_ADMIN_USER: kieserver
+      JBPM_HT_ADMIN_GROUP: Administrators
+      JAVA_OPTS: "-Xmx1g -Xms512m -Dorg.kie.server.startup.strategy=LocalContainersStartupStrategy -Dorg.kie.server.persistence.schema=JBPM"
+    ports:
+      - "8090:8090"
+    networks:
+      - app-network
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
 networks:
   app-network:
     driver: bridge

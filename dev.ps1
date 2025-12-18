@@ -6,6 +6,8 @@ function Help {
     Write-Host "  ./dev.ps1 <Command> [Options]" -ForegroundColor White
     Write-Host "" 
     Write-Host "Commands:" -ForegroundColor Yellow
+    Write-Host "  Run                 Run backend locally with hot reload (mvnw spring-boot:run)" -ForegroundColor White
+    Write-Host "  Support-Start       Start supporting services only (DB, Keycloak, Processes)" -ForegroundColor White
     Write-Host "  Dev-Start           Start backend and database services" -ForegroundColor White
     Write-Host "  Dev-Full            Start all services (full stack)" -ForegroundColor White
     Write-Host "  Dev-Stop            Stop all services" -ForegroundColor White
@@ -38,6 +40,38 @@ function Help {
 # The -NoCache flag is recommended if you suspect Docker is not picking up code changes.
 # PowerShell automation for local development
 
+# Run backend locally with hot reload (Spring Boot DevTools)
+function Run {
+    Write-Host "ERROR: JAVA_HOME is required to run mvnw directly" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "To run backend with hot reload in VS Code:" -ForegroundColor Cyan
+    Write-Host "  1. Make sure supporting services are running: .\dev.ps1 Support-Start" -ForegroundColor White
+    Write-Host "  2. Press Ctrl+Shift+B (Run Build Task)" -ForegroundColor White
+    Write-Host "  3. Select 'Run Spring Boot Dev Server'" -ForegroundColor White
+    Write-Host ""
+    Write-Host "This will run the backend with hot reload in a dedicated VS Code terminal." -ForegroundColor Yellow
+    Write-Host "Changes to Java files will be automatically reloaded." -ForegroundColor Yellow
+}
+
+# Start supporting services only (database, keycloak, processes)
+function Support-Start {
+    Write-Host "Starting supporting services (database, keycloak, process)..." -ForegroundColor Cyan
+    docker-compose up -d database keycloak process
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "[OK] Supporting services started" -ForegroundColor Green
+        Write-Host "" 
+        Write-Host "Services running:" -ForegroundColor Cyan
+        Write-Host "  - Database:  localhost:1433" -ForegroundColor White
+        Write-Host "  - Keycloak:  localhost:9090" -ForegroundColor White
+        Write-Host "  - Process:   localhost:8090" -ForegroundColor White
+        Write-Host "" 
+        Write-Host "Now run: .\dev.ps1 Run" -ForegroundColor Yellow
+    } else {
+        Write-Host "[ERROR] Failed to start supporting services" -ForegroundColor Red
+    }
+}
+
 # Helper function to load environment variables from .env file
 function Load-EnvFile {
     if (Test-Path .env) {
@@ -59,17 +93,17 @@ function Setup {
     
     if (!(Test-Path .env)) {
         Copy-Item .env.example .env
-        Write-Host "✓ .env created from .env.example" -ForegroundColor Green
+        Write-Host "[OK] .env created from .env.example" -ForegroundColor Green
         Write-Host "  Please edit .env with your ACR credentials" -ForegroundColor Yellow
     } else {
-        Write-Host "✓ .env file already exists" -ForegroundColor Green
+        Write-Host "[OK] .env file already exists" -ForegroundColor Green
     }
 }
 
 # Login to Azure Container Registry
 function ACR-Login {
     if (!(Test-Path .env)) {
-        Write-Host "✗ .env file not found. Run './dev.ps1 Setup' first" -ForegroundColor Red
+        Write-Host "[ERROR] .env file not found. Run './dev.ps1 Setup' first" -ForegroundColor Red
         return
     }
     
@@ -85,7 +119,7 @@ function ACR-Login {
     $acrPass = $env:ACR_PASSWORD
     
     if (!$acrServer -or !$acrUser -or !$acrPass) {
-        Write-Host "✗ ACR credentials not found in .env" -ForegroundColor Red
+        Write-Host "[ERROR] ACR credentials not found in .env" -ForegroundColor Red
         return
     }
     
@@ -93,9 +127,9 @@ function ACR-Login {
     echo $acrPass | docker login $acrServer -u $acrUser --password-stdin
     
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "✓ Successfully logged in to ACR" -ForegroundColor Green
+        Write-Host "[OK] Successfully logged in to ACR" -ForegroundColor Green
     } else {
-        Write-Host "✗ Failed to login to ACR" -ForegroundColor Red
+        Write-Host "[ERROR] Failed to login to ACR" -ForegroundColor Red
     }
 }
 
@@ -108,13 +142,13 @@ function Dev-Start {
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host ""
-        Write-Host "✓ Services started!" -ForegroundColor Green
+        Write-Host "[OK] Services started!" -ForegroundColor Green
         Write-Host "  Backend:  http://localhost:8080" -ForegroundColor White
         Write-Host "  Database: localhost:1433" -ForegroundColor White
         Write-Host ""
         Write-Host "Use './dev.ps1 Logs' to view logs" -ForegroundColor Yellow
     } else {
-        Write-Host "✗ Failed to start services" -ForegroundColor Red
+        Write-Host "[ERROR] Failed to start services" -ForegroundColor Red
     }
 }
 
@@ -127,18 +161,18 @@ function Dev-Full {
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host ""
-        Write-Host "✓ All services started!" -ForegroundColor Green
+        Write-Host "[OK] All services started!" -ForegroundColor Green
         Write-Host "  Frontend:        http://localhost:4200" -ForegroundColor White
         Write-Host "  Backend:         http://localhost:8080" -ForegroundColor White
+        Write-Host "  Process:         http://localhost:8090" -ForegroundColor White
         Write-Host "  Keycloak:        http://localhost:9090" -ForegroundColor White
         Write-Host "  Keycloak Admin:  http://localhost:9090/admin (admin/admin)" -ForegroundColor White
         Write-Host "  Database:        localhost:1433" -ForegroundColor White
         Write-Host ""
         Write-Host "Note: Keycloak takes ~60s to start. Check status with './dev.ps1 Logs keycloak'" -ForegroundColor Yellow
-        Write-Host "Note: Process Service (port 8090) is disabled - not available in ACR" -ForegroundColor Yellow
         Write-Host "Use './dev.ps1 Logs' to view logs" -ForegroundColor Yellow
     } else {
-        Write-Host "✗ Failed to start services" -ForegroundColor Red
+        Write-Host "[ERROR] Failed to start services" -ForegroundColor Red
     }
 }
 
@@ -148,7 +182,7 @@ function Dev-Stop {
     docker-compose down
     
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "✓ Services stopped" -ForegroundColor Green
+        Write-Host "[OK] Services stopped" -ForegroundColor Green
     }
 }
 
@@ -158,7 +192,7 @@ function Dev-Restart {
     docker-compose restart
     
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "✓ Services restarted" -ForegroundColor Green
+        Write-Host "[OK] Services restarted" -ForegroundColor Green
     }
 }
 
@@ -169,9 +203,9 @@ function Dev-Rebuild {
     docker-compose up -d --build backend
     
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "✓ Backend rebuilt and restarted" -ForegroundColor Green
+        Write-Host "[OK] Backend rebuilt and restarted" -ForegroundColor Green
     } else {
-        Write-Host "✗ Failed to rebuild backend" -ForegroundColor Red
+        Write-Host "[ERROR] Failed to rebuild backend" -ForegroundColor Red
     }
 }
 
@@ -213,12 +247,12 @@ function DB-Init {
         docker exec -i rap-database /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P $dbPassword -C -i /docker-entrypoint-initdb.d/01-create-database.sql
         
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "✓ Database initialized successfully" -ForegroundColor Green
+            Write-Host "[OK] Database initialized successfully" -ForegroundColor Green
         } else {
-            Write-Host "✗ Failed to initialize database" -ForegroundColor Red
+            Write-Host "[ERROR] Failed to initialize database" -ForegroundColor Red
         }
     } else {
-        Write-Host "✗ No init scripts found in init-scripts/" -ForegroundColor Red
+        Write-Host "[ERROR] No init scripts found in init-scripts/" -ForegroundColor Red
     }
 }
 
@@ -245,9 +279,9 @@ function DB-Reset {
         docker-compose down database
         docker volume rm backend_database-data -ErrorAction SilentlyContinue
         docker-compose up -d database
-        Write-Host "✓ Database reset complete. Run './dev.ps1 DB-Init' to initialize" -ForegroundColor Green
+        Write-Host "[OK] Database reset complete. Run './dev.ps1 DB-Init' to initialize" -ForegroundColor Green
     } else {
-        Write-Host "✗ Database reset cancelled" -ForegroundColor Yellow
+        Write-Host "[ERROR] Database reset cancelled" -ForegroundColor Yellow
     }
 }
 
@@ -255,7 +289,7 @@ function DB-Reset {
 function Clean {
     Write-Host "Cleaning up containers and networks..." -ForegroundColor Cyan
     docker-compose down
-    Write-Host "✓ Cleanup complete" -ForegroundColor Green
+    Write-Host "[OK] Cleanup complete" -ForegroundColor Green
 }
 
 # Clean everything including volumes
@@ -265,9 +299,9 @@ function Clean-All {
     
     if ($confirmation -eq 'yes') {
         docker-compose down -v
-        Write-Host "✓ All containers, networks, and volumes removed" -ForegroundColor Green
+        Write-Host "[OK] All containers, networks, and volumes removed" -ForegroundColor Green
     } else {
-        Write-Host "✗ Clean-all cancelled" -ForegroundColor Yellow
+        Write-Host "[ERROR] Clean-all cancelled" -ForegroundColor Yellow
     }
 }
 
@@ -282,9 +316,9 @@ function Build {
     }
     
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "✓ Build complete! JAR is in target/" -ForegroundColor Green
+        Write-Host "[OK] Build complete! JAR is in target/" -ForegroundColor Green
     } else {
-        Write-Host "✗ Build failed" -ForegroundColor Red
+        Write-Host "[ERROR] Build failed" -ForegroundColor Red
     }
 }
 
@@ -320,9 +354,9 @@ function Image-Build {
     $args += '.'
     docker build @args
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "✓ Image built: ${acrServer}/rap-backend:dev" -ForegroundColor Green
+        Write-Host "[OK] Image built: ${acrServer}/rap-backend:dev" -ForegroundColor Green
     } else {
-        Write-Host "✗ Image build failed" -ForegroundColor Red
+        Write-Host "[ERROR] Image build failed" -ForegroundColor Red
     }
 }
 
@@ -342,9 +376,9 @@ function Image-Push {
     docker push ${acrServer}/rap-backend:${version}
     
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "✓ Image pushed successfully" -ForegroundColor Green
+        Write-Host "[OK] Image pushed successfully" -ForegroundColor Green
     } else {
-        Write-Host "✗ Image push failed" -ForegroundColor Red
+        Write-Host "[ERROR] Image push failed" -ForegroundColor Red
     }
 }
 
@@ -368,9 +402,9 @@ function Image-Pull {
     docker pull ${acrServer}/rap-process-service:${processVer}
     
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "✓ Images pulled successfully" -ForegroundColor Green
+        Write-Host "[OK] Images pulled successfully" -ForegroundColor Green
     } else {
-        Write-Host "✗ Failed to pull images" -ForegroundColor Red
+        Write-Host "[ERROR] Failed to pull images" -ForegroundColor Red
     }
 }
 
@@ -429,6 +463,8 @@ if ($args.Count -eq 0) {
     $additionalArgs = $args[1..($args.Length-1)]
     
     switch ($command) {
+        "Run" { Run }
+        "Support-Start" { Support-Start }
         "Setup" { Setup }
         "ACR-Login" { ACR-Login }
         "Dev-Start" { Dev-Start }
@@ -455,3 +491,4 @@ if ($args.Count -eq 0) {
         }
     }
 }
+
