@@ -569,17 +569,23 @@ https://ca-raptor-backend-dev.azurecontainerapps.io/login/oauth2/code/*
 
 **Pattern:** `{frontend-url}/sign-in?logout=success`
 
+**⚠️ CRITICAL: This MUST be the FRONTEND container URL, NOT the backend URL!**
+
+The backend constructs the logout URL using the `FRONTEND_URL` environment variable. After logout, the OIDC provider redirects the **user's browser** back to the frontend application, not the backend API.
+
 **Local Development:**
 ```
 http://localhost:4200/sign-in?logout=success
 http://localhost:4200/*
 ```
 
-**Azure Production:**
+**Azure Production Example:**
 ```
-https://ca-raptor-frontend-dev.azurecontainerapps.io/sign-in?logout=success
-https://ca-raptor-frontend-dev.azurecontainerapps.io/*
+https://<your-frontend-container>.azurecontainerapps.io/sign-in?logout=success
+https://<your-frontend-container>.azurecontainerapps.io/*
 ```
+
+**Common Mistake:** ❌ Using backend URL like `https://dev-rap-be.azurecontainerapps.io` will cause "redirect_uri does not match" errors
 
 #### 3. Required OIDC Provider Features
 
@@ -634,6 +640,10 @@ azd env get-value frontendFqdn
 # Then use: https://ca-raptor-frontend-dev.azurecontainerapps.io
 ```
 
+**⚠️ IMPORTANT:** The post logout redirect URI must point to your **FRONTEND** container, not the backend. The redirect URIs are:
+- **OAuth2 Callback** (for login) → BACKEND URL + `/login/oauth2/code/oidc-provider`
+- **Post Logout Redirect** (after logout) → FRONTEND URL + `/sign-in?logout=success`
+
 ### Provider-Specific Configuration Examples
 
 #### Azure AD / Entra ID
@@ -641,12 +651,12 @@ azd env get-value frontendFqdn
 **1. App Registration Settings:**
 - Go to Azure Portal → App Registrations → Your App → Authentication
 
-**2. Add Redirect URIs:**
+**2. Add Redirect URIs (BACKEND URL):**
 ```
 https://ca-raptor-backend-dev.azurecontainerapps.io/login/oauth2/code/oidc-provider
 ```
 
-**3. Add Front-channel Logout URL:**
+**3. Add Front-channel Logout URL (FRONTEND URL):**
 ```
 https://ca-raptor-frontend-dev.azurecontainerapps.io/sign-in?logout=success
 ```
