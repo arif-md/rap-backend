@@ -56,6 +56,9 @@ public class AuthController {
     
     @Value("${spring.security.oauth2.client.registration.oidc-provider.client-id:}")
     private String oidcClientId;
+    
+    @Value("${oidc.logout.include-id-token-hint:true}")
+    private boolean includeIdTokenHint;
 
     public AuthController(
             UserService userService,
@@ -267,18 +270,21 @@ public class AuthController {
                 String postLogoutRedirectUri = frontendUrl + "/sign-in?logout=success";
                 
                 // Build logout URL with client_id (required by most providers)
-                // Some providers also accept id_token_hint, but client_id is more universal
                 StringBuilder logoutUrlBuilder = new StringBuilder(oidcEndSessionEndpoint);
                 logoutUrlBuilder.append("?client_id=").append(oidcClientId);
                 logoutUrlBuilder.append("&post_logout_redirect_uri=").append(postLogoutRedirectUri);
                 
-                // Add id_token_hint if available (optional, some providers require it)
-                if (idToken != null) {
+                // Add id_token_hint if configured and available
+                // Some providers require it (e.g., Keycloak), others reject it (custom providers)
+                if (includeIdTokenHint && idToken != null) {
                     logoutUrlBuilder.append("&id_token_hint=").append(idToken);
+                    logger.info("OIDC logout URL built with client_id and id_token_hint");
+                } else {
+                    logger.info("OIDC logout URL built with client_id only (id_token_hint: {})", 
+                        includeIdTokenHint ? "not available" : "disabled");
                 }
                 
                 oidcLogoutUrl = logoutUrlBuilder.toString();
-                logger.info("OIDC logout URL built with client_id: {}", oidcClientId);
             } else {
                 logger.warn("OIDC logout not available - endpoint: {}, clientId: {}", 
                     oidcEndSessionEndpoint, oidcClientId);

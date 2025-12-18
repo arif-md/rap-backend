@@ -177,7 +177,7 @@ The realm is now created and you'll be taken to the realm settings page.
      ```
    - **Valid post logout redirect URIs**: 
      ```
-     http://localhost:4200/login?logout=success
+     http://localhost:4200/sign-in?logout=success
      http://localhost:4200/*
      ```
    - **Web origins**: `http://localhost:8080`
@@ -567,17 +567,17 @@ https://ca-raptor-backend-dev.azurecontainerapps.io/login/oauth2/code/*
 
 #### 2. Post Logout Redirect URI
 
-**Pattern:** `{frontend-url}/login?logout=success`
+**Pattern:** `{frontend-url}/sign-in?logout=success`
 
 **Local Development:**
 ```
-http://localhost:4200/login?logout=success
+http://localhost:4200/sign-in?logout=success
 http://localhost:4200/*
 ```
 
 **Azure Production:**
 ```
-https://ca-raptor-frontend-dev.azurecontainerapps.io/login?logout=success
+https://ca-raptor-frontend-dev.azurecontainerapps.io/sign-in?logout=success
 https://ca-raptor-frontend-dev.azurecontainerapps.io/*
 ```
 
@@ -648,7 +648,7 @@ https://ca-raptor-backend-dev.azurecontainerapps.io/login/oauth2/code/oidc-provi
 
 **3. Add Front-channel Logout URL:**
 ```
-https://ca-raptor-frontend-dev.azurecontainerapps.io/login?logout=success
+https://ca-raptor-frontend-dev.azurecontainerapps.io/sign-in?logout=success
 ```
 
 **4. Azure Environment Variable:**
@@ -674,7 +674,7 @@ https://ca-raptor-backend-dev.azurecontainerapps.io/login/oauth2/code/*
 
 **3. Valid Post Logout Redirect URIs:**
 ```
-https://ca-raptor-frontend-dev.azurecontainerapps.io/login?logout=success
+https://ca-raptor-frontend-dev.azurecontainerapps.io/sign-in?logout=success
 https://ca-raptor-frontend-dev.azurecontainerapps.io/*
 ```
 
@@ -700,7 +700,7 @@ https://ca-raptor-backend-dev.azurecontainerapps.io/login/oauth2/code/oidc-provi
 
 **3. Sign-out Redirect URIs:**
 ```
-https://ca-raptor-frontend-dev.azurecontainerapps.io/login?logout=success
+https://ca-raptor-frontend-dev.azurecontainerapps.io/sign-in?logout=success
 https://ca-raptor-frontend-dev.azurecontainerapps.io
 ```
 
@@ -721,7 +721,7 @@ https://ca-raptor-backend-dev.azurecontainerapps.io/login/oauth2/code/oidc-provi
 
 **3. Allowed Logout URLs:**
 ```
-https://ca-raptor-frontend-dev.azurecontainerapps.io/login?logout=success
+https://ca-raptor-frontend-dev.azurecontainerapps.io/sign-in?logout=success
 https://ca-raptor-frontend-dev.azurecontainerapps.io
 ```
 
@@ -748,6 +748,39 @@ curl https://your-oidc-provider.com/.well-known/openid-configuration
 }
 ```
 
+**3. Configure Logout Parameters:**
+
+Some OIDC providers have different requirements for the logout endpoint parameters:
+
+**Standard OIDC RP-Initiated Logout** uses these parameters:
+- `client_id` - Identifies the client requesting logout (REQUIRED by most providers)
+- `id_token_hint` - The ID token from the original authentication (OPTIONAL, some providers require it)
+- `post_logout_redirect_uri` - Where to redirect after logout (OPTIONAL but recommended)
+
+**Configuration for Different Provider Types:**
+
+The application uses Spring Boot profiles to configure logout behavior:
+
+**Local Development (Keycloak):**
+- Profile: `local` (default in development)
+- Uses `id_token_hint` parameter (Keycloak supports this)
+- No configuration change needed
+
+**Azure Production (Custom OIDC Provider):**
+- Profile: `azure` (automatically set in Azure Container Apps)
+- Configured in `application-azure.properties`:
+  ```properties
+  oidc.logout.include-id-token-hint=false
+  ```
+- Does NOT send `id_token_hint` parameter (for custom providers that reject it)
+
+This configuration controls whether the logout URL includes the `id_token_hint` parameter:
+- **true** (default): Logout URL = `?client_id=<id>&post_logout_redirect_uri=<url>&id_token_hint=<token>`
+- **false** (Azure): Logout URL = `?client_id=<id>&post_logout_redirect_uri=<url>`
+
+**Error:** If you see "application is misconfigured and should not be sending id_token_hint", this is already handled in `application-azure.properties`.
+
+
 **Note:** You only need to verify that `end_session_endpoint` exists in the discovery document. The provider's support for `id_token_hint` and `post_logout_redirect_uri` parameters is determined by testing, not by the discovery document.
 
 **3. Test Login Flow:**
@@ -758,9 +791,9 @@ curl https://your-oidc-provider.com/.well-known/openid-configuration
 **4. Test Logout Flow:**
 - User clicks logout → backend redirects to:
   ```
-  https://your-oidc-provider.com/logout?id_token_hint={token}&post_logout_redirect_uri=https://frontend.com/login?logout=success
+  https://your-oidc-provider.com/logout?id_token_hint={token}&post_logout_redirect_uri=https://frontend.com/sign-in?logout=success
   ```
-- OIDC provider logs out user → redirects to: `https://frontend.com/login?logout=success`
+- OIDC provider logs out user → redirects to: `https://frontend.com/sign-in?logout=success`
 - Frontend displays success message
 
 ### Common Pitfalls
