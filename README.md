@@ -246,8 +246,8 @@ make dev-full            # Start all services
 ## Documentation
 
 ### Getting Started
-- **[Local Environment Setup](LOCAL-ENVIRONMENT-SETUP.md)** - ⭐ **START HERE** - Complete .env configuration guide
-- **[Local Development Guide](LOCAL-DEVELOPMENT.md)** - Development workflow and best practices
+- **[Local Environment Setup](docs/LOCAL-ENVIRONMENT-SETUP.md)** - ⭐ **START HERE** - Complete .env configuration guide
+- **[Local Development Guide](docs/LOCAL-DEVELOPMENT.md)** - Development workflow and best practices
 - **[Keycloak Setup](../docs/KEYCLOAK-LOCAL-SETUP.md)** - OIDC authentication provider configuration
 
 ### Configuration Management
@@ -258,15 +258,15 @@ make dev-full            # Start all services
   - Common configuration pitfalls and solutions
 
 ### Reference Guides
-- **[Docker Internals](DOCKER-INTERNALS.md)** - Deep dive into Docker layers, caching, and optimization
-- **[Accessing the App](ACCESSING-THE-APP.md)** - API authentication and endpoint details
-- **[Environment Variables](ENVIRONMENT-VARIABLES.md)** - Environment configuration across dev/test/prod
-- **[Docker README](README-DOCKER.md)** - Basic Docker usage guide
+- **[Docker Internals](docs/DOCKER-INTERNALS.md)** - Deep dive into Docker layers, caching, and optimization
+- **[Accessing the App](docs/ACCESSING-THE-APP.md)** - API authentication and endpoint details
+- **[Environment Variables](docs/ENVIRONMENT-VARIABLES.md)** - Environment configuration across dev/test/prod
+- **[Docker README](docs/README-DOCKER.md)** - Basic Docker usage guide
 
 ### Implementation Guides
 - **[OIDC Implementation](docs/OIDC-IMPLEMENTATION-SUMMARY.md)** - Backend OIDC authentication details
-- **[Testing Guide](TESTING-GUIDE.md)** - API testing and validation
-- **[Quick Reference](QUICK-REFERENCE.md)** - Common commands and patterns
+- **[Testing Guide](docs/TESTING-GUIDE.md)** - API testing and validation
+- **[Quick Reference](docs/QUICK-REFERENCE.md)** - Common commands and patterns
 
 ## Architecture
 
@@ -465,7 +465,7 @@ SPRING_SECURITY_USER_NAME=admin
 SPRING_SECURITY_USER_PASSWORD=admin123
 ```
 
-See [Environment Variables Guide](ENVIRONMENT-VARIABLES.md) for complete details.
+See [Environment Variables Guide](docs/ENVIRONMENT-VARIABLES.md) for complete details.
 
 ## Building and Testing
 
@@ -528,7 +528,7 @@ GET http://localhost:8080/api/
 Authorization: Basic admin:admin123
 ```
 
-See [Accessing the App](ACCESSING-THE-APP.md) for detailed API documentation.
+See [Accessing the App](docs/ACCESSING-THE-APP.md) for detailed API documentation.
 
 ## Troubleshooting
 
@@ -647,6 +647,6 @@ This repository is for local development. For Azure deployment:
 ## Support
 
 For issues or questions:
-1. Check [LOCAL-DEVELOPMENT.md](LOCAL-DEVELOPMENT.md) troubleshooting section
+1. Check [LOCAL-DEVELOPMENT.md](docs/LOCAL-DEVELOPMENT.md) troubleshooting section
 2. Review logs: `make dev-logs`
 3. Contact the development team

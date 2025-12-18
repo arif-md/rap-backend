@@ -172,12 +172,12 @@ The realm is now created and you'll be taken to the realm settings page.
    - **Home URL**: `http://localhost:4200`
    - **Valid redirect URIs**: 
      ```
-     http://localhost:8080/auth/callback
-     http://localhost:8080/auth/callback/*
+     http://localhost:8080/login/oauth2/code/oidc-provider
+     http://localhost:8080/login/oauth2/code/*
      ```
    - **Valid post logout redirect URIs**: 
      ```
-     http://localhost:4200
+     http://localhost:4200/login?logout=success
      http://localhost:4200/*
      ```
    - **Web origins**: `http://localhost:8080`
@@ -478,7 +478,7 @@ You should see the RAP landing page.
 
 ### 11.4 Verify Callback
 
-7. Keycloak redirects to: `http://localhost:8080/auth/callback?code=...`
+7. Keycloak redirects to: `http://localhost:8080/login/oauth2/code/oidc-provider?code=...`
 8. Backend exchanges code for tokens, sets cookies
 9. Backend redirects to: `http://localhost:4200/auth-callback`
 10. Frontend shows "Authenticating..." spinner
@@ -539,6 +539,254 @@ In browser DevTools → Console, you should see:
 Token refresh successful
 ```
 
+## Production / External OIDC Provider Configuration
+
+This section covers the required configuration changes when deploying to Azure or using an external OIDC provider (Azure AD, external Keycloak, Okta, Auth0, etc.).
+
+### Required OIDC Provider Settings
+
+Configure these redirect URIs in your OIDC provider's application/client settings:
+
+#### 1. OAuth2 Callback URI (Login)
+
+**Pattern:** `{backend-url}/login/oauth2/code/oidc-provider`
+
+**Local Development:**
+```
+http://localhost:8080/login/oauth2/code/oidc-provider
+http://localhost:8080/login/oauth2/code/*
+```
+
+**Azure Production:**
+```
+https://ca-raptor-backend-dev.azurecontainerapps.io/login/oauth2/code/oidc-provider
+https://ca-raptor-backend-dev.azurecontainerapps.io/login/oauth2/code/*
+```
+
+**Note:** Replace `oidc-provider` with your actual Spring Security OAuth2 registration ID if different.
+
+#### 2. Post Logout Redirect URI
+
+**Pattern:** `{frontend-url}/login?logout=success`
+
+**Local Development:**
+```
+http://localhost:4200/login?logout=success
+http://localhost:4200/*
+```
+
+**Azure Production:**
+```
+https://ca-raptor-frontend-dev.azurecontainerapps.io/login?logout=success
+https://ca-raptor-frontend-dev.azurecontainerapps.io/*
+```
+
+#### 3. Required OIDC Provider Features
+
+Your OIDC provider must support:
+- ✅ **RP-Initiated Logout** (OpenID Connect Session Management)
+- ✅ **end_session_endpoint** in discovery document (e.g., `https://provider.com/logout`)
+- ✅ Accepts `id_token_hint` parameter when calling the `end_session_endpoint`
+- ✅ Accepts `post_logout_redirect_uri` parameter when calling the `end_session_endpoint`
+- ✅ JWT format ID tokens (not opaque tokens)
+
+**Note:** The discovery document (`/.well-known/openid-configuration`) only needs to contain the `end_session_endpoint` URL. The parameters `id_token_hint` and `post_logout_redirect_uri` are **sent as query parameters** to that endpoint during logout, not listed in the discovery document itself.
+
+### Azure Environment Variables
+
+When deploying to Azure, set these environment variables in your backend Container App:
+
+```bash
+# OIDC Provider Issuer (MUST be production URL, not localhost)
+OIDC_PROVIDER_ISSUER_URI=https://your-oidc-provider.com
+
+# OAuth2 Client ID
+OIDC_CLIENT_ID=raptor-client
+
+# Frontend URL (for CORS and logout redirects)
+FRONTEND_URL=https://ca-raptor-frontend-dev.azurecontainerapps.io
+```
+
+**Setting via Azure CLI:**
+```powershell
+az containerapp update \
+  --name ca-raptor-backend-dev \
+  --resource-group rg-raptor-dev \
+  --set-env-vars \
+    OIDC_PROVIDER_ISSUER_URI=https://your-oidc-provider.com \
+    OIDC_CLIENT_ID=raptor-client \
+    FRONTEND_URL=https://ca-raptor-frontend-dev.azurecontainerapps.io
+```
+
+**Setting via azd:**
+```powershell
+cd infra
+azd env set OIDC_PROVIDER_ISSUER_URI https://your-oidc-provider.com
+azd env set OIDC_CLIENT_ID raptor-client
+azd env set FRONTEND_URL https://ca-raptor-frontend-dev.azurecontainerapps.io
+azd up
+```
+
+**Getting your frontend URL:**
+```powershell
+azd env get-value frontendFqdn
+# Output: ca-raptor-frontend-dev.azurecontainerapps.io
+# Then use: https://ca-raptor-frontend-dev.azurecontainerapps.io
+```
+
+### Provider-Specific Configuration Examples
+
+#### Azure AD / Entra ID
+
+**1. App Registration Settings:**
+- Go to Azure Portal → App Registrations → Your App → Authentication
+
+**2. Add Redirect URIs:**
+```
+https://ca-raptor-backend-dev.azurecontainerapps.io/login/oauth2/code/oidc-provider
+```
+
+**3. Add Front-channel Logout URL:**
+```
+https://ca-raptor-frontend-dev.azurecontainerapps.io/login?logout=success
+```
+
+**4. Azure Environment Variable:**
+```bash
+OIDC_PROVIDER_ISSUER_URI=https://login.microsoftonline.com/{your-tenant-id}/v2.0
+```
+
+**5. Verify Discovery Endpoint:**
+```
+https://login.microsoftonline.com/{tenant-id}/v2.0/.well-known/openid-configuration
+```
+
+#### External Keycloak (Production)
+
+**1. Client Settings:**
+- Go to Keycloak Admin Console → Clients → raptor-client → Settings
+
+**2. Valid Redirect URIs:**
+```
+https://ca-raptor-backend-dev.azurecontainerapps.io/login/oauth2/code/oidc-provider
+https://ca-raptor-backend-dev.azurecontainerapps.io/login/oauth2/code/*
+```
+
+**3. Valid Post Logout Redirect URIs:**
+```
+https://ca-raptor-frontend-dev.azurecontainerapps.io/login?logout=success
+https://ca-raptor-frontend-dev.azurecontainerapps.io/*
+```
+
+**4. Azure Environment Variable:**
+```bash
+OIDC_PROVIDER_ISSUER_URI=https://keycloak.yourdomain.com/realms/raptor
+```
+
+**5. Verify Discovery Endpoint:**
+```
+https://keycloak.yourdomain.com/realms/raptor/.well-known/openid-configuration
+```
+
+#### Okta
+
+**1. Application Settings:**
+- Go to Okta Admin Console → Applications → Your App → General Settings
+
+**2. Sign-in Redirect URIs:**
+```
+https://ca-raptor-backend-dev.azurecontainerapps.io/login/oauth2/code/oidc-provider
+```
+
+**3. Sign-out Redirect URIs:**
+```
+https://ca-raptor-frontend-dev.azurecontainerapps.io/login?logout=success
+https://ca-raptor-frontend-dev.azurecontainerapps.io
+```
+
+**4. Azure Environment Variable:**
+```bash
+OIDC_PROVIDER_ISSUER_URI=https://your-domain.okta.com/oauth2/default
+```
+
+#### Auth0
+
+**1. Application Settings:**
+- Go to Auth0 Dashboard → Applications → Your App → Settings
+
+**2. Allowed Callback URLs:**
+```
+https://ca-raptor-backend-dev.azurecontainerapps.io/login/oauth2/code/oidc-provider
+```
+
+**3. Allowed Logout URLs:**
+```
+https://ca-raptor-frontend-dev.azurecontainerapps.io/login?logout=success
+https://ca-raptor-frontend-dev.azurecontainerapps.io
+```
+
+**4. Azure Environment Variable:**
+```bash
+OIDC_PROVIDER_ISSUER_URI=https://your-domain.auth0.com/
+```
+
+### Verification Steps
+
+**1. Check OIDC Discovery Document:**
+```powershell
+curl https://your-oidc-provider.com/.well-known/openid-configuration
+```
+
+**2. Verify Required Endpoints Exist:**
+```json
+{
+  "issuer": "https://your-oidc-provider.com",
+  "authorization_endpoint": "https://...",
+  "token_endpoint": "https://...",
+  "end_session_endpoint": "https://...",  // Required for logout - this is all you need!
+  "userinfo_endpoint": "https://..."
+}
+```
+
+**Note:** You only need to verify that `end_session_endpoint` exists in the discovery document. The provider's support for `id_token_hint` and `post_logout_redirect_uri` parameters is determined by testing, not by the discovery document.
+
+**3. Test Login Flow:**
+- User clicks login → redirects to OIDC provider
+- After authentication → redirects to: `https://backend.com/login/oauth2/code/oidc-provider?code=...`
+- Backend processes callback → redirects to frontend
+
+**4. Test Logout Flow:**
+- User clicks logout → backend redirects to:
+  ```
+  https://your-oidc-provider.com/logout?id_token_hint={token}&post_logout_redirect_uri=https://frontend.com/login?logout=success
+  ```
+- OIDC provider logs out user → redirects to: `https://frontend.com/login?logout=success`
+- Frontend displays success message
+
+### Common Pitfalls
+
+❌ **Using localhost in Azure:**
+```bash
+# WRONG - will cause logout to fail
+OIDC_PROVIDER_ISSUER_URI=http://localhost:9090/realms/raptor
+```
+
+✅ **Using production URL:**
+```bash
+# CORRECT
+OIDC_PROVIDER_ISSUER_URI=https://keycloak.yourdomain.com/realms/raptor
+```
+
+❌ **Mismatched redirect URIs:**
+- Provider configured: `/auth/callback`
+- Application uses: `/login/oauth2/code/oidc-provider`
+- Result: "Invalid redirect_uri" error
+
+✅ **Matching redirect URIs:**
+- Provider configured: `/login/oauth2/code/oidc-provider`
+- Application uses: `/login/oauth2/code/oidc-provider`
+- Result: Successful authentication
+
 ## Troubleshooting
 
 ### Issue: "Invalid redirect_uri"
@@ -549,8 +797,8 @@ Token refresh successful
 1. Go to Keycloak Admin → Clients → `raptor-client`
 2. Verify **Valid redirect URIs** includes:
    ```
-   http://localhost:8080/auth/callback
-   http://localhost:8080/auth/callback/*
+   http://localhost:8080/login/oauth2/code/oidc-provider
+   http://localhost:8080/login/oauth2/code/*
    ```
 3. Click **Save**
 
