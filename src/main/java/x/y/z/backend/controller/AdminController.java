@@ -12,7 +12,6 @@ import x.y.z.backend.service.UserService;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -134,7 +133,7 @@ public class AdminController {
      */
     @PostMapping("/users/{userId}/roles/{roleName}")
     public ResponseEntity<Map<String, Object>> assignRole(
-            @PathVariable UUID userId,
+            @PathVariable Long userId,
             @PathVariable String roleName,
             @RequestBody Map<String, String> requestBody) {
 
@@ -173,7 +172,7 @@ public class AdminController {
      */
     @DeleteMapping("/users/{userId}/roles/{roleName}")
     public ResponseEntity<Map<String, Object>> removeRole(
-            @PathVariable UUID userId,
+            @PathVariable Long userId,
             @PathVariable String roleName) {
 
         try {
@@ -207,7 +206,7 @@ public class AdminController {
      * @return Success response
      */
     @PutMapping("/users/{userId}/deactivate")
-    public ResponseEntity<Map<String, Object>> deactivateUser(@PathVariable UUID userId) {
+    public ResponseEntity<Map<String, Object>> deactivateUser(@PathVariable Long userId) {
         try {
             userService.deactivateUser(userId);
 
@@ -233,7 +232,7 @@ public class AdminController {
      * @return Success response
      */
     @PutMapping("/users/{userId}/activate")
-    public ResponseEntity<Map<String, Object>> activateUser(@PathVariable UUID userId) {
+    public ResponseEntity<Map<String, Object>> activateUser(@PathVariable Long userId) {
         try {
             userService.activateUser(userId);
 

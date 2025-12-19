@@ -6,23 +6,21 @@
 
     <!-- Result Map for UserRole -->
     <resultMap id="UserRoleResultMap" type="x.y.z.backend.domain.model.UserRole">
-        <id property="id" column="id" javaType="java.util.UUID"/>
-        <result property="userId" column="user_id" javaType="java.util.UUID"/>
-        <result property="roleId" column="role_id" javaType="java.util.UUID"/>
+        <id property="id" column="id" javaType="java.lang.Long"/>
+        <result property="userId" column="user_id" javaType="java.lang.Long"/>
+        <result property="roleId" column="role_id" javaType="java.lang.Long"/>
         <result property="grantedAt" column="granted_at"/>
         <result property="grantedBy" column="granted_by"/>
     </resultMap>
 
     <!-- Insert UserRole -->
-    <insert id="insert" parameterType="x.y.z.backend.domain.model.UserRole">
+    <insert id="insert" parameterType="x.y.z.backend.domain.model.UserRole" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO RAP.user_roles (
-            id,
             user_id,
             role_id,
             granted_at,
             granted_by
         ) VALUES (
-            NEWID(),
             #{userId},
             #{roleId},
             GETUTCDATE(),

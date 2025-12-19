@@ -6,7 +6,7 @@
 
     <!-- Result Map for User -->
     <resultMap id="UserResultMap" type="x.y.z.backend.domain.model.User">
-        <id property="id" column="id" javaType="java.util.UUID"/>
+        <id property="id" column="id" javaType="java.lang.Long"/>
         <result property="oidcSubject" column="oidc_subject"/>
         <result property="email" column="email"/>
         <result property="fullName" column="full_name"/>
@@ -17,13 +17,8 @@
     </resultMap>
 
     <!-- Insert User -->
-    <insert id="insert" parameterType="x.y.z.backend.domain.model.User">
-        <selectKey keyProperty="id" resultType="java.util.UUID" order="BEFORE">
-            SELECT NEWID()
-        </selectKey>
-        
+    <insert id="insert" parameterType="x.y.z.backend.domain.model.User" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO RAP.users (
-            id,
             oidc_subject,
             email,
             full_name,
@@ -31,7 +26,6 @@
             last_login_at
         )
         VALUES (
-            CAST(#{id, jdbcType=VARCHAR} AS UNIQUEIDENTIFIER),
             #{oidcSubject, jdbcType=VARCHAR},
             #{email, jdbcType=VARCHAR},
             #{fullName, jdbcType=VARCHAR},

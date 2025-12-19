@@ -19,7 +19,6 @@ import x.y.z.backend.service.UserService;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * AuthController - REST Controller for authentication and token management.
@@ -328,7 +327,7 @@ public class AuthController {
             }
 
             // Extract user info from token
-            UUID userId = jwtTokenUtil.getUserIdFromToken(accessToken);
+            Long userId = jwtTokenUtil.getUserIdFromToken(accessToken);
             String email = jwtTokenUtil.getEmailFromToken(accessToken);
             var roles = jwtTokenUtil.getRolesFromToken(accessToken);
 
@@ -352,9 +351,9 @@ public class AuthController {
             userInfo.put("isActive", user.getIsActive());
             userInfo.put("lastLoginAt", user.getLastLoginAt());
             userInfo.put("createdAt", user.getCreatedAt());
-            // Set isExternalUser: true if role is USER, false otherwise (internal users have other roles)
+            // Set isExternalUser: true if role is EXTERNAL_USER, false otherwise (internal users have other roles)
             boolean isExternalUser = roles != null && roles.stream()
-                .anyMatch(role -> "USER".equalsIgnoreCase(role));
+                .anyMatch(role -> "EXTERNAL_USER".equalsIgnoreCase(role));
             userInfo.put("isExternalUser", isExternalUser);
 
             return ResponseEntity.ok(userInfo);
@@ -392,7 +391,7 @@ public class AuthController {
 
             if (accessTokenValid) {
                 // Extract user info from token
-                UUID userId = jwtTokenUtil.getUserIdFromToken(accessToken);
+                Long userId = jwtTokenUtil.getUserIdFromToken(accessToken);
                 String email = jwtTokenUtil.getEmailFromToken(accessToken);
                 var roles = jwtTokenUtil.getRolesFromToken(accessToken);
 

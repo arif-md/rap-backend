@@ -6,25 +6,23 @@
 
     <!-- Result Map for RevokedToken -->
     <resultMap id="RevokedTokenResultMap" type="x.y.z.backend.domain.model.RevokedToken">
-        <id property="id" column="id" javaType="java.util.UUID"/>
+        <id property="id" column="id" javaType="java.lang.Long"/>
         <result property="jti" column="jti"/>
-        <result property="userId" column="user_id" javaType="java.util.UUID"/>
+        <result property="userId" column="user_id" javaType="java.lang.Long"/>
         <result property="expiresAt" column="expires_at"/>
         <result property="revokedAt" column="revoked_at"/>
         <result property="reason" column="reason"/>
     </resultMap>
 
     <!-- Insert RevokedToken -->
-    <insert id="insert" parameterType="x.y.z.backend.domain.model.RevokedToken">
+    <insert id="insert" parameterType="x.y.z.backend.domain.model.RevokedToken" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO RAP.revoked_tokens (
-            id,
             jti,
             user_id,
             expires_at,
             revoked_at,
             reason
         ) VALUES (
-            NEWID(),
             #{jti},
             #{userId},
             #{expiresAt},

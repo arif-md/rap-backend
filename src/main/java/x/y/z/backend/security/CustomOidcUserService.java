@@ -183,7 +183,7 @@ public class CustomOidcUserService extends OidcUserService {
         Set<GrantedAuthority> authorities = new HashSet<>();
         
         // Add default authenticated authority
-        authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+        //authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
         
         // Extract realm roles from ID Token
         if (claims.containsKey("realm_access")) {
@@ -214,8 +214,8 @@ public class CustomOidcUserService extends OidcUserService {
             });
         }
         
-        // If no roles from OIDC provider (only default ROLE_USER), default to ROLE_EXTERNAL_USER
-        if (authorities.size() == 1 && authorities.stream().allMatch(a -> a.getAuthority().equals("ROLE_USER"))) {
+        // If no roles from OIDC provider, default to ROLE_EXTERNAL_USER
+        if (authorities.size() == 0){// && authorities.stream().allMatch(a -> a.getAuthority().equals("ROLE_USER"))) {
             logger.info("No specific roles from OIDC provider, defaulting to ROLE_EXTERNAL_USER");
             authorities.add(new SimpleGrantedAuthority("ROLE_EXTERNAL_USER"));
         }

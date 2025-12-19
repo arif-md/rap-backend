@@ -7,7 +7,6 @@ import x.y.z.backend.domain.model.User;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * MyBatis Mapper interface for User entity.
@@ -30,7 +29,7 @@ public interface UserMapper {
     /**
      * Find user by ID
      */
-    User findById(@Param("id") UUID id);
+    User findById(@Param("id") Long id);
 
     /**
      * Find user by OIDC subject (sub claim)
@@ -55,20 +54,20 @@ public interface UserMapper {
     /**
      * Update user's last login timestamp
      */
-    int updateLastLogin(@Param("id") UUID id, @Param("lastLoginAt") LocalDateTime lastLoginAt);
+    int updateLastLogin(@Param("id") Long id, @Param("lastLoginAt") LocalDateTime lastLoginAt);
 
     /**
      * Deactivate a user (soft delete)
      */
-    int deactivate(@Param("id") UUID id);
+    int deactivate(@Param("id") Long id);
 
     /**
      * Activate a user
      */
-    int activate(@Param("id") UUID id);
+    int activate(@Param("id") Long id);
 
     /**
      * Delete a user by ID (hard delete - use with caution)
      */
-    int deleteById(@Param("id") UUID id);
+    int deleteById(@Param("id") Long id);
 }

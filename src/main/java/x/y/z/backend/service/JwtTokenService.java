@@ -17,7 +17,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -56,7 +55,7 @@ public class JwtTokenService {
      * @param userId User's unique ID
      * @return TokenPair containing access token and refresh token
      */
-    public TokenPair generateTokens(UUID userId) {
+    public TokenPair generateTokens(Long userId) {
         // Get user roles
         List<Role> roles = userHandler.findRolesByUserId(userId);
         List<String> roleNames = roles.stream()
@@ -113,7 +112,7 @@ public class JwtTokenService {
         }
 
         // Generate new access token
-        UUID userId = storedToken.getUserId();
+        Long userId = storedToken.getUserId();
         List<Role> roles = userHandler.findRolesByUserId(userId);
         List<String> roleNames = roles.stream()
                 .map(Role::getRoleName)
@@ -156,7 +155,7 @@ public class JwtTokenService {
     public void revokeAccessToken(String accessToken, String reason) {
         try {
             String jti = jwtTokenUtil.getJtiFromToken(accessToken);
-            UUID userId = jwtTokenUtil.getUserIdFromToken(accessToken);
+            Long userId = jwtTokenUtil.getUserIdFromToken(accessToken);
             LocalDateTime expiresAt = LocalDateTime.ofInstant(
                     jwtTokenUtil.getExpirationFromToken(accessToken).toInstant(),
                     ZoneId.systemDefault()
@@ -176,7 +175,7 @@ public class JwtTokenService {
      * 
      * @param userId User's unique ID
      */
-    public void revokeAllRefreshTokens(UUID userId) {
+    public void revokeAllRefreshTokens(Long userId) {
         refreshTokenHandler.revokeAllByUserId(userId, LocalDateTime.now());
     }
 

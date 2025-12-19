@@ -6,7 +6,7 @@ CREATE TABLE RAP.permit (
     status NVARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
     issue_date DATE NOT NULL,
     expiry_date DATE,
-    holder_id UNIQUEIDENTIFIER NOT NULL,
+    holder_id BIGINT NOT NULL,
     description NVARCHAR(1000),
     created_at DATETIME2 NOT NULL DEFAULT GETDATE(),
     created_by NVARCHAR(255) NOT NULL,

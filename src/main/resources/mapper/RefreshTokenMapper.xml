@@ -6,8 +6,8 @@
 
     <!-- Result Map for RefreshToken -->
     <resultMap id="RefreshTokenResultMap" type="x.y.z.backend.domain.model.RefreshToken">
-        <id property="id" column="id" javaType="java.util.UUID"/>
-        <result property="userId" column="user_id" javaType="java.util.UUID"/>
+        <id property="id" column="id" javaType="java.lang.Long"/>
+        <result property="userId" column="user_id" javaType="java.lang.Long"/>
         <result property="tokenHash" column="token_hash"/>
         <result property="issuedAt" column="issued_at"/>
         <result property="expiresAt" column="expires_at"/>
@@ -20,13 +20,8 @@
     </resultMap>
 
     <!-- Insert RefreshToken -->
-    <insert id="insert" parameterType="x.y.z.backend.domain.model.RefreshToken">
-        <selectKey keyProperty="id" resultType="java.util.UUID" order="BEFORE">
-            SELECT NEWID()
-        </selectKey>
-        
+    <insert id="insert" parameterType="x.y.z.backend.domain.model.RefreshToken" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO RAP.refresh_tokens (
-            id,
             user_id,
             token_hash,
             expires_at,
@@ -35,8 +30,7 @@
             user_agent,
             revoked_at
         ) VALUES (
-            CAST(#{id, jdbcType=VARCHAR} AS UNIQUEIDENTIFIER),
-            CAST(#{userId, jdbcType=VARCHAR} AS UNIQUEIDENTIFIER),
+            #{userId, jdbcType=BIGINT},
             #{tokenHash, jdbcType=VARCHAR},
             #{expiresAt, jdbcType=TIMESTAMP},
             #{isRevoked, jdbcType=BIT},

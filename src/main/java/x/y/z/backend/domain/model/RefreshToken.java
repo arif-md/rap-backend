@@ -1,7 +1,6 @@
 package x.y.z.backend.domain.model;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * RefreshToken POJO - Domain model representing a JWT refresh token.
@@ -9,8 +8,8 @@ import java.util.UUID;
  */
 public class RefreshToken {
     
-    private UUID id;
-    private UUID userId;
+    private Long id;
+    private Long userId;
     private String tokenHash;        // SHA-256 hash of the refresh token (for security)
     
     // Token Lifecycle
@@ -32,7 +31,7 @@ public class RefreshToken {
     }
 
     // Constructor for creating new refresh tokens
-    public RefreshToken(UUID userId, String tokenHash, LocalDateTime expiresAt) {
+    public RefreshToken(Long userId, String tokenHash, LocalDateTime expiresAt) {
         this.userId = userId;
         this.tokenHash = tokenHash;
         this.expiresAt = expiresAt;
@@ -40,19 +39,19 @@ public class RefreshToken {
     }
 
     // Getters and Setters
-    public UUID getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
-    public UUID getUserId() {
+    public Long getUserId() {
         return userId;
     }
 
-    public void setUserId(UUID userId) {
+    public void setUserId(Long userId) {
         this.userId = userId;
     }
 

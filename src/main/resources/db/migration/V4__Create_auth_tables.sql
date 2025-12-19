@@ -3,9 +3,9 @@
 -- ===================================================================
 -- Description: Creates tables for OIDC authentication, user management,
 --              role-based authorization, JWT refresh tokens, and token revocation
--- Version: V5
+-- Version: V4
 -- Author: System
--- Date: 2025-11-06
+-- Date: 2025-12-18
 -- ===================================================================
 
 -- ===================================================================
@@ -13,7 +13,7 @@
 -- ===================================================================
 -- Stores authenticated users from OIDC provider
 CREATE TABLE RAP.users (
-    id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
     
     -- OIDC Claims
     oidc_subject NVARCHAR(255) NOT NULL UNIQUE,  -- 'sub' claim from OIDC provider (permanent ID)
@@ -39,7 +39,7 @@ CREATE TABLE RAP.users (
 -- ===================================================================
 -- Application roles for authorization
 CREATE TABLE RAP.roles (
-    id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
     role_name NVARCHAR(50) NOT NULL UNIQUE,       -- e.g., 'USER', 'ADMIN', 'MANAGER'
     description NVARCHAR(255),
     created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
@@ -52,9 +52,9 @@ CREATE TABLE RAP.roles (
 -- ===================================================================
 -- Maps users to their assigned roles
 CREATE TABLE RAP.user_roles (
-    id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-    user_id UNIQUEIDENTIFIER NOT NULL,
-    role_id UNIQUEIDENTIFIER NOT NULL,
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    role_id BIGINT NOT NULL,
     granted_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     granted_by NVARCHAR(255),                     -- Admin who granted the role (for audit)
     
@@ -73,9 +73,9 @@ CREATE TABLE RAP.user_roles (
 -- ===================================================================
 -- Stores refresh tokens for session extension without re-authentication
 CREATE TABLE RAP.refresh_tokens (
-    id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
     token_hash NVARCHAR(255) NOT NULL UNIQUE,     -- SHA-256 hash of refresh token (never store plain token)
-    user_id UNIQUEIDENTIFIER NOT NULL,
+    user_id BIGINT NOT NULL,
     
     -- Token Lifecycle
     issued_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
@@ -105,9 +105,9 @@ CREATE TABLE RAP.refresh_tokens (
 -- Tracks revoked JWT tokens for immediate invalidation
 -- Note: Only needed if you want instant JWT revocation before natural expiration
 CREATE TABLE RAP.revoked_tokens (
-    id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
     jti NVARCHAR(255) NOT NULL UNIQUE,            -- JWT ID from token claim
-    user_id UNIQUEIDENTIFIER NOT NULL,
+    user_id BIGINT NOT NULL,
     
     -- Token Metadata
     revoked_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
@@ -126,34 +126,35 @@ CREATE TABLE RAP.revoked_tokens (
 -- ===================================================================
 -- 6. SEED DATA - Default Roles
 -- ===================================================================
--- Insert standard application roles
-INSERT INTO RAP.roles (id, role_name, description) VALUES
-    (NEWID(), 'USER', 'Basic authenticated user with read access'),
-    (NEWID(), 'MANAGER', 'Manager with read/write access to managed entities'),
-    (NEWID(), 'ADMIN', 'System administrator with full access');
+-- Insert standard application roles (IDENTITY will auto-generate IDs)
+INSERT INTO RAP.roles (role_name, description) VALUES
+    ('USER', 'Internal user with read access'),
+    ('EXTERNAL_USER', 'External user with read access'),
+    ('MANAGER', 'Manager with read/write access to managed entities'),
+    ('ADMIN', 'System administrator with full access');
 
 -- ===================================================================
 -- 7. SEED DATA - Test User (for local development only)
 -- ===================================================================
 -- Create a test user for local development
 -- In production, users are created automatically on first OIDC login
-DECLARE @testUserId UNIQUEIDENTIFIER = NEWID();
-DECLARE @userRoleId UNIQUEIDENTIFIER;
+DECLARE @testUserId BIGINT;
+DECLARE @userRoleId BIGINT;
 
--- Insert test user
-INSERT INTO RAP.users (id, oidc_subject, email, full_name, is_active)
+-- Insert test user (IDENTITY will auto-generate ID)
+INSERT INTO RAP.users (oidc_subject, email, full_name, is_active)
 VALUES (
-    @testUserId,
-    'test|local-dev-user',                        -- Fake OIDC subject for local testing
-    'test@example.com',
-    'Test User',
+    'system|system-user',                        -- Fake OIDC subject for local testing
+    'system@nexgeninc.com',
+    'System User',
     1
 );
+SET @testUserId = SCOPE_IDENTITY();
 
 -- Assign USER role to test user
-SELECT @userRoleId = id FROM RAP.roles WHERE role_name = 'USER';
-INSERT INTO RAP.user_roles (id, user_id, role_id, granted_by)
-VALUES (NEWID(), @testUserId, @userRoleId, 'SYSTEM_SEED');
+SELECT @userRoleId = id FROM RAP.roles WHERE role_name = 'ADMIN';
+INSERT INTO RAP.user_roles (user_id, role_id, granted_by)
+VALUES (@testUserId, @userRoleId, 'SYSTEM_SEED');
 
 -- ===================================================================
 -- 8. CLEANUP JOBS (Comments - for future scheduled tasks)

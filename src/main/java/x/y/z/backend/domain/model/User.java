@@ -1,7 +1,6 @@
 package x.y.z.backend.domain.model;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * User POJO - Domain model representing an authenticated user from OIDC provider.
@@ -9,7 +8,7 @@ import java.util.UUID;
  */
 public class User {
     
-    private UUID id;
+    private Long id;
     private String oidcSubject;      // 'sub' claim from OIDC provider (permanent ID)
     private String email;
     private String fullName;
@@ -31,11 +30,11 @@ public class User {
     }
 
     // Getters and Setters
-    public UUID getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(Long id) {
         this.id = id;
     }
 

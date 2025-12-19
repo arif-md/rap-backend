@@ -19,7 +19,6 @@ import x.y.z.backend.service.JwtTokenService;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -55,7 +54,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (jwt != null && jwtTokenService.validateAccessToken(jwt)) {
                 // Extract user info from token
-                UUID userId = jwtTokenUtil.getUserIdFromToken(jwt);
+                Long userId = jwtTokenUtil.getUserIdFromToken(jwt);
                 String email = jwtTokenUtil.getEmailFromToken(jwt);
                 List<String> roles = jwtTokenUtil.getRolesFromToken(jwt);
 
@@ -114,17 +113,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * UserPrincipal - Represents authenticated user in Spring Security context
      */
     public static class UserPrincipal implements CurrentUser {
-        private final UUID userId;
+        private final Long userId;
         private final String email;
         private final List<String> roles;
 
-        public UserPrincipal(UUID userId, String email, List<String> roles) {
+        public UserPrincipal(Long userId, String email, List<String> roles) {
             this.userId = userId;
             this.email = email;
             this.roles = roles;
         }
 
-        public UUID getUserId() {
+        public Long getUserId() {
             return userId;
         }
 

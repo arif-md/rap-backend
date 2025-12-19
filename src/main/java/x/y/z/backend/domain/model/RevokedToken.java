@@ -1,7 +1,6 @@
 package x.y.z.backend.domain.model;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * RevokedToken POJO - Domain model representing a revoked JWT access token.
@@ -10,9 +9,9 @@ import java.util.UUID;
  */
 public class RevokedToken {
     
-    private UUID id;
+    private Long id;
     private String jti;              // JWT ID (unique identifier for the token)
-    private UUID userId;
+    private Long userId;
     private LocalDateTime expiresAt; // Original expiration of the token
     private LocalDateTime revokedAt;
     private String reason;           // e.g., 'LOGOUT', 'SECURITY_BREACH', 'ADMIN_ACTION'
@@ -22,7 +21,7 @@ public class RevokedToken {
     }
 
     // Constructor for revoking tokens
-    public RevokedToken(String jti, UUID userId, LocalDateTime expiresAt, String reason) {
+    public RevokedToken(String jti, Long userId, LocalDateTime expiresAt, String reason) {
         this.jti = jti;
         this.userId = userId;
         this.expiresAt = expiresAt;
@@ -30,11 +29,11 @@ public class RevokedToken {
     }
 
     // Getters and Setters
-    public UUID getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -46,11 +45,11 @@ public class RevokedToken {
         this.jti = jti;
     }
 
-    public UUID getUserId() {
+    public Long getUserId() {
         return userId;
     }
 
-    public void setUserId(UUID userId) {
+    public void setUserId(Long userId) {
         this.userId = userId;
     }
 

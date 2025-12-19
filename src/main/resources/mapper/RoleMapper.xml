@@ -6,21 +6,19 @@
 
     <!-- Result Map for Role -->
     <resultMap id="RoleResultMap" type="x.y.z.backend.domain.model.Role">
-        <id property="id" column="id" javaType="java.util.UUID"/>
+        <id property="id" column="id" javaType="java.lang.Long"/>
         <result property="roleName" column="role_name"/>
         <result property="description" column="description"/>
         <result property="createdAt" column="created_at"/>
     </resultMap>
 
     <!-- Insert Role -->
-    <insert id="insert" parameterType="x.y.z.backend.domain.model.Role">
+    <insert id="insert" parameterType="x.y.z.backend.domain.model.Role" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO RAP.roles (
-            id,
             role_name,
             description,
             created_at
         ) VALUES (
-            NEWID(),
             #{roleName},
             #{description},
             GETUTCDATE()

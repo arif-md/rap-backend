@@ -7,7 +7,6 @@ import x.y.z.backend.domain.model.RevokedToken;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * MyBatis Mapper interface for RevokedToken entity.
@@ -25,7 +24,7 @@ public interface RevokedTokenMapper {
     /**
      * Find revoked token by ID
      */
-    RevokedToken findById(@Param("id") UUID id);
+    RevokedToken findById(@Param("id") Long id);
 
     /**
      * Find revoked token by JTI (JWT ID)
@@ -40,7 +39,7 @@ public interface RevokedTokenMapper {
     /**
      * Get all revoked tokens for a user
      */
-    List<RevokedToken> findByUserId(@Param("userId") UUID userId);
+    List<RevokedToken> findByUserId(@Param("userId") Long userId);
 
     /**
      * Delete expired revoked tokens (cleanup job)
@@ -50,5 +49,5 @@ public interface RevokedTokenMapper {
     /**
      * Delete a revoked token by ID
      */
-    int deleteById(@Param("id") UUID id);
+    int deleteById(@Param("id") Long id);
 }

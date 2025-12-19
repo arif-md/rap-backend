@@ -10,7 +10,6 @@ import x.y.z.backend.repository.mapper.UserRoleMapper;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * UserHandler - Handles user-related data access operations.
@@ -45,7 +44,7 @@ public class UserHandler {
         return user;
     }
 
-    public User findById(UUID id) {
+    public User findById(Long id) {
         return userMapper.findById(id);
     }
 
@@ -65,19 +64,19 @@ public class UserHandler {
         return userMapper.findAllActive();
     }
 
-    public void updateLastLogin(UUID userId, LocalDateTime lastLoginAt) {
+    public void updateLastLogin(Long userId, LocalDateTime lastLoginAt) {
         userMapper.updateLastLogin(userId, lastLoginAt);
     }
 
-    public void deactivate(UUID userId) {
+    public void deactivate(Long userId) {
         userMapper.deactivate(userId);
     }
 
-    public void activate(UUID userId) {
+    public void activate(Long userId) {
         userMapper.activate(userId);
     }
 
-    public void deleteById(UUID userId) {
+    public void deleteById(Long userId) {
         userMapper.deleteById(userId);
     }
 
@@ -86,24 +85,24 @@ public class UserHandler {
         return roleMapper.findByName(roleName);
     }
 
-    public List<Role> findRolesByUserId(UUID userId) {
+    public List<Role> findRolesByUserId(Long userId) {
         return roleMapper.findByUserId(userId);
     }
 
-    public void assignRole(UUID userId, UUID roleId, String grantedBy) {
+    public void assignRole(Long userId, Long roleId, String grantedBy) {
         UserRole userRole = new UserRole(userId, roleId, grantedBy);
         userRoleMapper.insert(userRole);
     }
 
-    public boolean hasRole(UUID userId, UUID roleId) {
+    public boolean hasRole(Long userId, Long roleId) {
         return userRoleMapper.hasRole(userId, roleId);
     }
 
-    public void removeRole(UUID userId, UUID roleId) {
+    public void removeRole(Long userId, Long roleId) {
         userRoleMapper.delete(userId, roleId);
     }
 
-    public void clearUserRoles(UUID userId) {
+    public void clearUserRoles(Long userId) {
         userRoleMapper.deleteByUserId(userId);
     }
 

@@ -7,7 +7,6 @@ import x.y.z.backend.domain.model.RefreshToken;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * MyBatis Mapper interface for RefreshToken entity.
@@ -25,7 +24,7 @@ public interface RefreshTokenMapper {
     /**
      * Find refresh token by ID
      */
-    RefreshToken findById(@Param("id") UUID id);
+    RefreshToken findById(@Param("id") Long id);
 
     /**
      * Find refresh token by token hash
@@ -35,22 +34,22 @@ public interface RefreshTokenMapper {
     /**
      * Get all active (non-revoked, non-expired) refresh tokens for a user
      */
-    List<RefreshToken> findActiveByUserId(@Param("userId") UUID userId);
+    List<RefreshToken> findActiveByUserId(@Param("userId") Long userId);
 
     /**
      * Get all refresh tokens for a user (including revoked and expired)
      */
-    List<RefreshToken> findByUserId(@Param("userId") UUID userId);
+    List<RefreshToken> findByUserId(@Param("userId") Long userId);
 
     /**
      * Revoke a specific refresh token
      */
-    int revoke(@Param("id") UUID id, @Param("revokedAt") LocalDateTime revokedAt);
+    int revoke(@Param("id") Long id, @Param("revokedAt") LocalDateTime revokedAt);
 
     /**
      * Revoke all refresh tokens for a user
      */
-    int revokeAllByUserId(@Param("userId") UUID userId, @Param("revokedAt") LocalDateTime revokedAt);
+    int revokeAllByUserId(@Param("userId") Long userId, @Param("revokedAt") LocalDateTime revokedAt);
 
     /**
      * Delete expired tokens (cleanup job)
@@ -60,5 +59,5 @@ public interface RefreshTokenMapper {
     /**
      * Delete a refresh token by ID
      */
-    int deleteById(@Param("id") UUID id);
+    int deleteById(@Param("id") Long id);
 }

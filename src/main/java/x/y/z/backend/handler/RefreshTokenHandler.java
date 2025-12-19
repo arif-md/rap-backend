@@ -6,7 +6,6 @@ import x.y.z.backend.repository.mapper.RefreshTokenMapper;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * RefreshTokenHandler - Handles refresh token data access operations.
@@ -29,7 +28,7 @@ public class RefreshTokenHandler {
         return refreshToken;
     }
 
-    public RefreshToken findById(UUID id) {
+    public RefreshToken findById(Long id) {
         return refreshTokenMapper.findById(id);
     }
 
@@ -37,19 +36,19 @@ public class RefreshTokenHandler {
         return refreshTokenMapper.findByTokenHash(tokenHash);
     }
 
-    public List<RefreshToken> findActiveByUserId(UUID userId) {
+    public List<RefreshToken> findActiveByUserId(Long userId) {
         return refreshTokenMapper.findActiveByUserId(userId);
     }
 
-    public List<RefreshToken> findByUserId(UUID userId) {
+    public List<RefreshToken> findByUserId(Long userId) {
         return refreshTokenMapper.findByUserId(userId);
     }
 
-    public void revoke(UUID tokenId, LocalDateTime revokedAt) {
+    public void revoke(Long tokenId, LocalDateTime revokedAt) {
         refreshTokenMapper.revoke(tokenId, revokedAt);
     }
 
-    public void revokeAllByUserId(UUID userId, LocalDateTime revokedAt) {
+    public void revokeAllByUserId(Long userId, LocalDateTime revokedAt) {
         refreshTokenMapper.revokeAllByUserId(userId, revokedAt);
     }
 
@@ -57,7 +56,7 @@ public class RefreshTokenHandler {
         refreshTokenMapper.deleteExpired(currentTime);
     }
 
-    public void deleteById(UUID tokenId) {
+    public void deleteById(Long tokenId) {
         refreshTokenMapper.deleteById(tokenId);
     }
 }

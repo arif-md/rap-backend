@@ -6,7 +6,6 @@ import x.y.z.backend.repository.mapper.RevokedTokenMapper;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * RevokedTokenHandler - Handles revoked token data access operations.
@@ -29,7 +28,7 @@ public class RevokedTokenHandler {
         return revokedToken;
     }
 
-    public RevokedToken findById(UUID id) {
+    public RevokedToken findById(Long id) {
         return revokedTokenMapper.findById(id);
     }
 
@@ -41,7 +40,7 @@ public class RevokedTokenHandler {
         return revokedTokenMapper.isRevoked(jti);
     }
 
-    public List<RevokedToken> findByUserId(UUID userId) {
+    public List<RevokedToken> findByUserId(Long userId) {
         return revokedTokenMapper.findByUserId(userId);
     }
 
@@ -49,7 +48,7 @@ public class RevokedTokenHandler {
         revokedTokenMapper.deleteExpired(currentTime);
     }
 
-    public void deleteById(UUID tokenId) {
+    public void deleteById(Long tokenId) {
         revokedTokenMapper.deleteById(tokenId);
     }
 }

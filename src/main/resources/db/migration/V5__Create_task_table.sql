@@ -8,7 +8,7 @@ CREATE TABLE RAP.task (
     issuing_office NVARCHAR(255),
     type NVARCHAR(50) NOT NULL,
     status NVARCHAR(50) NOT NULL DEFAULT 'PENDING',
-    assigned_to UNIQUEIDENTIFIER,
+    assigned_to BIGINT,
     due_date DATETIME2,
     created_at DATETIME2 NOT NULL DEFAULT GETDATE(),
     created_by NVARCHAR(255) NOT NULL,

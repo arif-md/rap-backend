@@ -48,7 +48,7 @@ public class JwtTokenUtil {
      * @param roles List of role names (e.g., ["USER", "ADMIN"])
      * @return Signed JWT token string
      */
-    public String generateAccessToken(UUID userId, String email, List<String> roles) {
+    public String generateAccessToken(Long userId, String email, List<String> roles) {
         Instant now = Instant.now();
         Instant expiration = now.plus(accessTokenExpirationMinutes, ChronoUnit.MINUTES);
 
@@ -101,11 +101,11 @@ public class JwtTokenUtil {
      * Extract user ID from token
      * 
      * @param token JWT token string
-     * @return User ID (UUID)
+     * @return User ID (Long)
      */
-    public UUID getUserIdFromToken(String token) {
+    public Long getUserIdFromToken(String token) {
         Claims claims = validateToken(token);
-        return UUID.fromString(claims.getSubject());
+        return Long.parseLong(claims.getSubject());
     }
 
     /**

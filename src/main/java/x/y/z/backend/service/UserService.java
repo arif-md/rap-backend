@@ -9,7 +9,6 @@ import x.y.z.backend.handler.UserHandler;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * UserService - Service layer for user management and OIDC integration.
@@ -86,7 +85,7 @@ public class UserService {
      * 
      * @param userId User's unique ID
      */
-    private void assignDefaultRole(UUID userId) {
+    private void assignDefaultRole(Long userId) {
         Role userRole = userHandler.findRoleByName("USER");
         
         if (userRole != null) {
@@ -103,7 +102,7 @@ public class UserService {
      * @return User entity or null
      */
     @Transactional(readOnly = true)
-    public User findById(UUID userId) {
+    public User findById(Long userId) {
         return userHandler.findById(userId);
     }
 
@@ -136,7 +135,7 @@ public class UserService {
      * @param roleName Role name (e.g., "ADMIN", "MANAGER")
      * @param grantedBy Who granted the role (for audit)
      */
-    public void assignRole(UUID userId, String roleName, String grantedBy) {
+    public void assignRole(Long userId, String roleName, String grantedBy) {
         Role role = userHandler.findRoleByName(roleName);
         
         if (role == null) {
@@ -156,7 +155,7 @@ public class UserService {
      * @param userId User's unique ID
      * @param roleName Role name
      */
-    public void removeRole(UUID userId, String roleName) {
+    public void removeRole(Long userId, String roleName) {
         Role role = userHandler.findRoleByName(roleName);
         
         if (role == null) {
@@ -171,7 +170,7 @@ public class UserService {
      * 
      * @param userId User's unique ID
      */
-    public void deactivateUser(UUID userId) {
+    public void deactivateUser(Long userId) {
         userHandler.deactivate(userId);
     }
 
@@ -180,7 +179,7 @@ public class UserService {
      * 
      * @param userId User's unique ID
      */
-    public void activateUser(UUID userId) {
+    public void activateUser(Long userId) {
         userHandler.activate(userId);
     }
 

@@ -1,7 +1,6 @@
 package x.y.z.backend.domain.model;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * Role POJO - Domain model representing an application role for authorization.
@@ -9,7 +8,7 @@ import java.util.UUID;
  */
 public class Role {
     
-    private UUID id;
+    private Long id;
     private String roleName;         // e.g., 'USER', 'ADMIN', 'MANAGER'
     private String description;
     private LocalDateTime createdAt;
@@ -25,11 +24,11 @@ public class Role {
     }
 
     // Getters and Setters
-    public UUID getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(Long id) {
         this.id = id;
     }
 

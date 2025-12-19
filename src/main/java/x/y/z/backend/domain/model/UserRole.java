@@ -1,7 +1,6 @@
 package x.y.z.backend.domain.model;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * UserRole POJO - Domain model representing the many-to-many relationship
@@ -10,9 +9,9 @@ import java.util.UUID;
  */
 public class UserRole {
     
-    private UUID id;
-    private UUID userId;
-    private UUID roleId;
+    private Long id;
+    private Long userId;
+    private Long roleId;
     private LocalDateTime grantedAt;
     private String grantedBy;        // Admin who granted the role (for audit)
 
@@ -21,34 +20,34 @@ public class UserRole {
     }
 
     // Constructor for creating new user-role assignments
-    public UserRole(UUID userId, UUID roleId, String grantedBy) {
+    public UserRole(Long userId, Long roleId, String grantedBy) {
         this.userId = userId;
         this.roleId = roleId;
         this.grantedBy = grantedBy;
     }
 
     // Getters and Setters
-    public UUID getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
-    public UUID getUserId() {
+    public Long getUserId() {
         return userId;
     }
 
-    public void setUserId(UUID userId) {
+    public void setUserId(Long userId) {
         this.userId = userId;
     }
 
-    public UUID getRoleId() {
+    public Long getRoleId() {
         return roleId;
     }
 
-    public void setRoleId(UUID roleId) {
+    public void setRoleId(Long roleId) {
         this.roleId = roleId;
     }
 

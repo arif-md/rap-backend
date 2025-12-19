@@ -6,7 +6,6 @@ import org.springframework.stereotype.Repository;
 import x.y.z.backend.domain.model.UserRole;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * MyBatis Mapper interface for UserRole entity (many-to-many relationship).
@@ -24,35 +23,35 @@ public interface UserRoleMapper {
     /**
      * Find user-role assignment by ID
      */
-    UserRole findById(@Param("id") UUID id);
+    UserRole findById(@Param("id") Long id);
 
     /**
      * Get all role assignments for a specific user
      */
-    List<UserRole> findByUserId(@Param("userId") UUID userId);
+    List<UserRole> findByUserId(@Param("userId") Long userId);
 
     /**
      * Get all user assignments for a specific role
      */
-    List<UserRole> findByRoleId(@Param("roleId") UUID roleId);
+    List<UserRole> findByRoleId(@Param("roleId") Long roleId);
 
     /**
      * Check if a user has a specific role
      */
-    boolean hasRole(@Param("userId") UUID userId, @Param("roleId") UUID roleId);
+    boolean hasRole(@Param("userId") Long userId, @Param("roleId") Long roleId);
 
     /**
      * Delete a specific user-role assignment
      */
-    int delete(@Param("userId") UUID userId, @Param("roleId") UUID roleId);
+    int delete(@Param("userId") Long userId, @Param("roleId") Long roleId);
 
     /**
      * Delete all role assignments for a user
      */
-    int deleteByUserId(@Param("userId") UUID userId);
+    int deleteByUserId(@Param("userId") Long userId);
 
     /**
      * Delete all user assignments for a role
      */
-    int deleteByRoleId(@Param("roleId") UUID roleId);
+    int deleteByRoleId(@Param("roleId") Long roleId);
 }

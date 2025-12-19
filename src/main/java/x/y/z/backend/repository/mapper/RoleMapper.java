@@ -6,7 +6,6 @@ import org.springframework.stereotype.Repository;
 import x.y.z.backend.domain.model.Role;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * MyBatis Mapper interface for Role entity.
@@ -29,7 +28,7 @@ public interface RoleMapper {
     /**
      * Find role by ID
      */
-    Role findById(@Param("id") UUID id);
+    Role findById(@Param("id") Long id);
 
     /**
      * Find role by name
@@ -44,10 +43,10 @@ public interface RoleMapper {
     /**
      * Get all roles for a specific user
      */
-    List<Role> findByUserId(@Param("userId") UUID userId);
+    List<Role> findByUserId(@Param("userId") Long userId);
 
     /**
      * Delete a role by ID
      */
-    int deleteById(@Param("id") UUID id);
+    int deleteById(@Param("id") Long id);
 }
