@@ -404,19 +404,26 @@ public class AuthController {
                     return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
                 }
 
+                // Set isExternalUser: true if role is EXTERNAL_USER, false otherwise (internal users have other roles)
+                boolean isExternalUser = roles != null && roles.stream()
+                    .anyMatch(role -> "EXTERNAL_USER".equalsIgnoreCase(role));
+
                 response.put("authenticated", true);
                 response.put("accessTokenValid", true);
                 response.put("requiresReauth", false);
-                response.put("user", Map.of(
-                        "id", user.getId().toString(),
-                        "email", user.getEmail(),
-                        "fullName", user.getFullName(),
-                        "oidcSubject", user.getOidcSubject(),
-                        "roles", roles,
-                        "isActive", user.getIsActive(),
-                        "lastLoginAt", user.getLastLoginAt(),
-                        "createdAt", user.getCreatedAt()
-                ));
+                
+                Map<String, Object> userInfo = new HashMap<>();
+                userInfo.put("id", user.getId().toString());
+                userInfo.put("email", user.getEmail());
+                userInfo.put("fullName", user.getFullName());
+                userInfo.put("oidcSubject", user.getOidcSubject());
+                userInfo.put("roles", roles);
+                userInfo.put("isActive", user.getIsActive());
+                userInfo.put("isExternalUser", isExternalUser);
+                userInfo.put("lastLoginAt", user.getLastLoginAt());
+                userInfo.put("createdAt", user.getCreatedAt());
+                
+                response.put("user", userInfo);
                 return ResponseEntity.ok(response);
             }
 
