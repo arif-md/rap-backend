@@ -18,7 +18,7 @@
 
     <!-- Insert User -->
     <insert id="insert" parameterType="x.y.z.backend.domain.model.User" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
-        INSERT INTO RAP.users (
+        INSERT INTO RAP.USER_INFO (
             oidc_subject,
             email,
             full_name,
@@ -36,7 +36,7 @@
 
     <!-- Update User -->
     <update id="update" parameterType="x.y.z.backend.domain.model.User">
-        UPDATE RAP.users
+        UPDATE RAP.USER_INFO
         SET email = #{email},
             full_name = #{fullName},
             is_active = #{isActive},
@@ -46,38 +46,38 @@
 
     <!-- Find User by ID -->
     <select id="findById" resultMap="UserResultMap">
-        SELECT * FROM RAP.users
+        SELECT * FROM RAP.USER_INFO
         WHERE id = #{id}
     </select>
 
     <!-- Find User by OIDC Subject -->
     <select id="findByOidcSubject" resultMap="UserResultMap">
-        SELECT * FROM RAP.users
+        SELECT * FROM RAP.USER_INFO
         WHERE oidc_subject = #{oidcSubject}
     </select>
 
     <!-- Find User by Email -->
     <select id="findByEmail" resultMap="UserResultMap">
-        SELECT * FROM RAP.users
+        SELECT * FROM RAP.USER_INFO
         WHERE email = #{email}
     </select>
 
     <!-- Find All Users -->
     <select id="findAll" resultMap="UserResultMap">
-        SELECT * FROM RAP.users
+        SELECT * FROM RAP.USER_INFO
         ORDER BY created_at DESC
     </select>
 
     <!-- Find All Active Users -->
     <select id="findAllActive" resultMap="UserResultMap">
-        SELECT * FROM RAP.users
+        SELECT * FROM RAP.USER_INFO
         WHERE is_active = 1
         ORDER BY created_at DESC
     </select>
 
     <!-- Update Last Login -->
     <update id="updateLastLogin">
-        UPDATE RAP.users
+        UPDATE RAP.USER_INFO
         SET last_login_at = #{lastLoginAt},
             updated_at = GETUTCDATE()
         WHERE id = #{id}
@@ -85,7 +85,7 @@
 
     <!-- Deactivate User -->
     <update id="deactivate">
-        UPDATE RAP.users
+        UPDATE RAP.USER_INFO
         SET is_active = 0,
             updated_at = GETUTCDATE()
         WHERE id = #{id}
@@ -93,7 +93,7 @@
 
     <!-- Activate User -->
     <update id="activate">
-        UPDATE RAP.users
+        UPDATE RAP.USER_INFO
         SET is_active = 1,
             updated_at = GETUTCDATE()
         WHERE id = #{id}
@@ -101,7 +101,7 @@
 
     <!-- Delete User by ID -->
     <delete id="deleteById">
-        DELETE FROM RAP.users
+        DELETE FROM RAP.USER_INFO
         WHERE id = #{id}
     </delete>
 

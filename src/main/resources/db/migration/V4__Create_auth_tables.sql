@@ -9,41 +9,40 @@
 -- ===================================================================
 
 -- ===================================================================
--- 1. USERS TABLE
+-- 1. USER_INFO TABLE
 -- ===================================================================
 -- Stores authenticated users from OIDC provider
-CREATE TABLE RAP.users (
-    id BIGINT IDENTITY(1,1) PRIMARY KEY,
-    
+CREATE TABLE RAP.USER_INFO (
+    id BIGINT IDENTITY PRIMARY KEY,    
     -- OIDC Claims
     oidc_subject NVARCHAR(255) NOT NULL UNIQUE,  -- 'sub' claim from OIDC provider (permanent ID)
     email NVARCHAR(255) NOT NULL UNIQUE,          -- Email from OIDC
+    first_name NVARCHAR(255) null,
+    last_name NVARCHAR(255) null,
     full_name NVARCHAR(255),                      -- Display name from OIDC
-    
+    lang NVARCHAR(255) null,
+    pwd NVARCHAR(255) null, 
     -- User Status
-    is_active BIT NOT NULL DEFAULT 1,             -- Can be disabled by admin
-    
+    is_active BIT NOT NULL DEFAULT 1,             -- Can be disabled by admin 
     -- Audit Timestamps
     created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     updated_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     last_login_at DATETIME2,                      -- Updated on each successful login
-    
     -- Indexes for performance
-    INDEX IX_users_email (email),
-    INDEX IX_users_oidc_subject (oidc_subject),
-    INDEX IX_users_is_active (is_active)
+    INDEX IX_user_info_email (email),
+    INDEX IX_user_info_oidc_subject (oidc_subject),
+    INDEX IX_user_info_is_active (is_active)
 );
 
 -- ===================================================================
 -- 2. ROLES TABLE
 -- ===================================================================
 -- Application roles for authorization
-CREATE TABLE RAP.roles (
-    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+CREATE TABLE RAP.ROLE_REF (
+    id BIGINT IDENTITY PRIMARY KEY,
     role_name NVARCHAR(50) NOT NULL UNIQUE,       -- e.g., 'USER', 'ADMIN', 'MANAGER'
     description NVARCHAR(255),
-    created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-    
+    created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),    
     INDEX IX_roles_role_name (role_name)
 );
 
@@ -51,17 +50,17 @@ CREATE TABLE RAP.roles (
 -- 3. USER_ROLES TABLE (Many-to-Many)
 -- ===================================================================
 -- Maps users to their assigned roles
-CREATE TABLE RAP.user_roles (
+CREATE TABLE RAP.USER_ROLE (
     id BIGINT IDENTITY(1,1) PRIMARY KEY,
     user_id BIGINT NOT NULL,
     role_id BIGINT NOT NULL,
     granted_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     granted_by NVARCHAR(255),                     -- Admin who granted the role (for audit)
-    
+
     CONSTRAINT FK_user_roles_user FOREIGN KEY (user_id) 
-        REFERENCES RAP.users(id) ON DELETE CASCADE,
+        REFERENCES RAP.USER_INFO(id) ON DELETE CASCADE,
     CONSTRAINT FK_user_roles_role FOREIGN KEY (role_id) 
-        REFERENCES RAP.roles(id) ON DELETE CASCADE,
+        REFERENCES RAP.ROLE_REF(id) ON DELETE CASCADE,
     CONSTRAINT UQ_user_role UNIQUE (user_id, role_id),
     
     INDEX IX_user_roles_user_id (user_id),
@@ -92,7 +91,7 @@ CREATE TABLE RAP.refresh_tokens (
     revoked_reason NVARCHAR(255),                 -- 'LOGOUT', 'SECURITY_BREACH', 'PASSWORD_CHANGE'
     
     CONSTRAINT FK_refresh_tokens_user FOREIGN KEY (user_id) 
-        REFERENCES RAP.users(id) ON DELETE CASCADE,
+        REFERENCES RAP.USER_INFO(id) ON DELETE CASCADE,
     
     INDEX IX_refresh_tokens_token_hash (token_hash),
     INDEX IX_refresh_tokens_user_id (user_id),
@@ -116,7 +115,7 @@ CREATE TABLE RAP.revoked_tokens (
     revoked_by NVARCHAR(255),                     -- Who/what revoked it
     
     CONSTRAINT FK_revoked_tokens_user FOREIGN KEY (user_id) 
-        REFERENCES RAP.users(id) ON DELETE CASCADE,
+        REFERENCES RAP.USER_INFO(id) ON DELETE CASCADE,
     
     INDEX IX_revoked_tokens_jti (jti),
     INDEX IX_revoked_tokens_user_id (user_id),
@@ -127,7 +126,7 @@ CREATE TABLE RAP.revoked_tokens (
 -- 6. SEED DATA - Default Roles
 -- ===================================================================
 -- Insert standard application roles (IDENTITY will auto-generate IDs)
-INSERT INTO RAP.roles (role_name, description) VALUES
+INSERT INTO RAP.ROLE_REF (role_name, description) VALUES
     ('USER', 'Internal user with read access'),
     ('EXTERNAL_USER', 'External user with read access'),
     ('MANAGER', 'Manager with read/write access to managed entities'),
@@ -141,8 +140,8 @@ INSERT INTO RAP.roles (role_name, description) VALUES
 DECLARE @testUserId BIGINT;
 DECLARE @userRoleId BIGINT;
 
--- Insert test user (IDENTITY will auto-generate ID)
-INSERT INTO RAP.users (oidc_subject, email, full_name, is_active)
+-- Insert pre-defined users (IDENTITY will auto-generate ID)
+INSERT INTO RAP.USER_INFO (oidc_subject, email, full_name, is_active)
 VALUES (
     'system|system-user',                        -- Fake OIDC subject for local testing
     'system@nexgeninc.com',
@@ -152,8 +151,8 @@ VALUES (
 SET @testUserId = SCOPE_IDENTITY();
 
 -- Assign USER role to test user
-SELECT @userRoleId = id FROM RAP.roles WHERE role_name = 'ADMIN';
-INSERT INTO RAP.user_roles (user_id, role_id, granted_by)
+SELECT @userRoleId = id FROM RAP.ROLE_REF WHERE role_name = 'ADMIN';
+INSERT INTO RAP.USER_ROLE (user_id, role_id, granted_by)
 VALUES (@testUserId, @userRoleId, 'SYSTEM_SEED');
 
 -- ===================================================================

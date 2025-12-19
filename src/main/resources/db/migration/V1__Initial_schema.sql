@@ -5,7 +5,7 @@
 -- It runs automatically on first startup (both Azure and local Docker).
 --
 -- Schema isolation:
--- - RAP schema: Backend application tables (users, applications, tasks, etc.)
+-- - RAP schema: Backend application tables (USER_INFO, applications, tasks, etc.)
 -- - JBPM schema: Process engine tables (managed by processes service)
 --
 -- Flyway tracks which migrations have run in the flyway_schema_history table.
@@ -56,7 +56,7 @@ GO
 
 -- Actual application tables are created in subsequent migrations:
 -- - V2: Application table
--- - V5: Authentication tables (users, roles, tokens)
+-- - V5: Authentication tables (USER_INFO, roles, tokens)
 -- - V6: Task table
 -- - V7: Permit table
 

@@ -14,7 +14,7 @@
 
     <!-- Insert Role -->
     <insert id="insert" parameterType="x.y.z.backend.domain.model.Role" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
-        INSERT INTO RAP.roles (
+        INSERT INTO RAP.ROLE_REF (
             role_name,
             description,
             created_at
@@ -27,7 +27,7 @@
 
     <!-- Update Role -->
     <update id="update" parameterType="x.y.z.backend.domain.model.Role">
-        UPDATE RAP.roles
+        UPDATE RAP.ROLE_REF
         SET role_name = #{roleName},
             description = #{description}
         WHERE id = #{id}
@@ -35,34 +35,34 @@
 
     <!-- Find Role by ID -->
     <select id="findById" resultMap="RoleResultMap">
-        SELECT * FROM RAP.roles
+        SELECT * FROM RAP.ROLE_REF
         WHERE id = #{id}
     </select>
 
     <!-- Find Role by Name -->
     <select id="findByName" resultMap="RoleResultMap">
-        SELECT * FROM RAP.roles
+        SELECT * FROM RAP.ROLE_REF
         WHERE role_name = #{roleName}
     </select>
 
     <!-- Find All Roles -->
     <select id="findAll" resultMap="RoleResultMap">
-        SELECT * FROM RAP.roles
+        SELECT * FROM RAP.ROLE_REF
         ORDER BY role_name
     </select>
 
     <!-- Find Roles by User ID -->
     <select id="findByUserId" resultMap="RoleResultMap">
         SELECT r.*
-        FROM RAP.roles r
-        INNER JOIN RAP.user_roles ur ON r.id = ur.role_id
+        FROM RAP.ROLE_REF r
+        INNER JOIN RAP.USER_ROLE ur ON r.id = ur.role_id
         WHERE ur.user_id = #{userId}
         ORDER BY r.role_name
     </select>
 
     <!-- Delete Role by ID -->
     <delete id="deleteById">
-        DELETE FROM RAP.roles
+        DELETE FROM RAP.ROLE_REF
         WHERE id = #{id}
     </delete>
 

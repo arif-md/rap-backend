@@ -15,7 +15,7 @@
 
     <!-- Insert UserRole -->
     <insert id="insert" parameterType="x.y.z.backend.domain.model.UserRole" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
-        INSERT INTO RAP.user_roles (
+        INSERT INTO RAP.USER_ROLE (
             user_id,
             role_id,
             granted_at,
@@ -30,20 +30,20 @@
 
     <!-- Find UserRole by ID -->
     <select id="findById" resultMap="UserRoleResultMap">
-        SELECT * FROM RAP.user_roles
+        SELECT * FROM RAP.USER_ROLE
         WHERE id = #{id}
     </select>
 
     <!-- Find UserRoles by User ID -->
     <select id="findByUserId" resultMap="UserRoleResultMap">
-        SELECT * FROM RAP.user_roles
+        SELECT * FROM RAP.USER_ROLE
         WHERE user_id = #{userId}
         ORDER BY granted_at DESC
     </select>
 
     <!-- Find UserRoles by Role ID -->
     <select id="findByRoleId" resultMap="UserRoleResultMap">
-        SELECT * FROM RAP.user_roles
+        SELECT * FROM RAP.USER_ROLE
         WHERE role_id = #{roleId}
         ORDER BY granted_at DESC
     </select>
@@ -51,25 +51,25 @@
     <!-- Check if User has Role -->
     <select id="hasRole" resultType="boolean">
         SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END
-        FROM RAP.user_roles
+        FROM RAP.USER_ROLE
         WHERE user_id = #{userId} AND role_id = #{roleId}
     </select>
 
     <!-- Delete UserRole -->
     <delete id="delete">
-        DELETE FROM RAP.user_roles
+        DELETE FROM RAP.USER_ROLE
         WHERE user_id = #{userId} AND role_id = #{roleId}
     </delete>
 
     <!-- Delete by User ID -->
     <delete id="deleteByUserId">
-        DELETE FROM RAP.user_roles
+        DELETE FROM RAP.USER_ROLE
         WHERE user_id = #{userId}
     </delete>
 
     <!-- Delete by Role ID -->
     <delete id="deleteByRoleId">
-        DELETE FROM RAP.user_roles
+        DELETE FROM RAP.USER_ROLE
         WHERE role_id = #{roleId}
     </delete>
 

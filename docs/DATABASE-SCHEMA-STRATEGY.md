@@ -9,7 +9,7 @@ The RAP application uses **schema-based isolation** to separate backend applicat
 ```
 SQL Server Database: rapdb (localhost:1433)
 ├── RAP Schema
-│   ├── users
+│   ├── USER_INFO
 │   ├── roles
 │   ├── user_roles
 │   ├── applications
@@ -225,9 +225,9 @@ cd backend
 .\dev.ps1 Dev-Logs backend
 
 # Verify via SQL
-SELECT * FROM RAP.users;  # Should work
-SELECT * FROM users;       # Should work (default schema is RAP)
-SELECT * FROM dbo.users;   # Should fail (table doesn't exist in dbo)
+SELECT * FROM RAP.USER_INFO;  # Should work
+SELECT * FROM USER_INFO;       # Should work (default schema is RAP)
+SELECT * FROM dbo.USER_INFO;   # Should fail (table doesn't exist in dbo)
 ```
 
 ### Verify Processes Uses JBPM Schema
