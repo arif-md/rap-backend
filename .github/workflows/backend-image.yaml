@@ -3,7 +3,7 @@ name: Backend - Build and Push Image (Digest)
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ az-204 ]
     paths:
       - 'Dockerfile'
       - 'Dockerfile.buildkit'
