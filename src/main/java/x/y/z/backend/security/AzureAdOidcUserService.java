@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Azure AD OIDC User Service for internal (SSO) users.
@@ -169,24 +170,29 @@ public class AzureAdOidcUserService extends OidcUserService {
     }
 
     /**
-     * Extract authorities from Azure AD ID Token claims.
+     * Extract authorities from ID Token claims.
      * <p>
-     * Azure AD provides roles in different claim formats:
-     * - "roles": App roles assigned in Azure AD Enterprise Application
-     * - "groups": Azure AD group object IDs (if configured in token)
-     * - "wids": Azure AD built-in role template IDs
+     * Supports multiple token formats depending on the underlying provider:
+     * <ul>
+     *   <li>Azure AD: "roles" claim (app roles assigned in Enterprise Application)</li>
+     *   <li>Azure AD: "groups" claim (group object IDs, optional)</li>
+     *   <li>Keycloak: "realm_access.roles" claim (realm roles)</li>
+     *   <li>Keycloak: "resource_access.{client}.roles" claim (client roles)</li>
+     * </ul>
      * <p>
-     * Internal users always get ROLE_INTERNAL_USER as a baseline.
+     * In local development, the azure-ad registration may point to Keycloak,
+     * so roles are read from Keycloak-style claims. In production, roles come
+     * from Azure AD claims.
+     * <p>
+     * Falls back to ROLE_INTERNAL_USER if no recognized application roles are found in the token.
+     * Keycloak system/default roles (e.g., default-roles-*, offline_access, uma_authorization)
+     * are filtered out to prevent them from masking the fallback.
      */
     @SuppressWarnings("unchecked")
     private Set<GrantedAuthority> extractAuthorities(Map<String, Object> claims) {
         Set<GrantedAuthority> authorities = new HashSet<>();
 
-        // Always assign ROLE_INTERNAL_USER for Azure AD SSO users
-        authorities.add(new SimpleGrantedAuthority("ROLE_INTERNAL_USER"));
-        logger.debug("Added baseline role: ROLE_INTERNAL_USER (Azure AD SSO user)");
-
-        // Extract app roles from "roles" claim
+        // 1. Extract app roles from Azure AD "roles" claim
         if (claims.containsKey("roles")) {
             Object rolesObj = claims.get("roles");
             if (rolesObj instanceof List) {
@@ -199,19 +205,102 @@ public class AzureAdOidcUserService extends OidcUserService {
             }
         }
 
-        // Extract group-based roles from "groups" claim (optional)
+        // 2. Extract realm roles from Keycloak "realm_access.roles" claim
+        //    (used when azure-ad registration points to Keycloak in local dev)
+        //    Keycloak system roles are filtered out to avoid polluting authorities.
+        if (claims.containsKey("realm_access")) {
+            Map<String, Object> realmAccess = (Map<String, Object>) claims.get("realm_access");
+            if (realmAccess.containsKey("roles")) {
+                List<String> roles = (List<String>) realmAccess.get("roles");
+                roles.stream()
+                    .filter(role -> !isKeycloakSystemRole(role))
+                    .forEach(role -> {
+                        authorities.add(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
+                        logger.debug("Added Keycloak realm role: ROLE_{}", role.toUpperCase());
+                    });
+                // Log filtered roles for troubleshooting
+                List<String> filtered = roles.stream().filter(this::isKeycloakSystemRole).collect(Collectors.toList());
+                if (!filtered.isEmpty()) {
+                    logger.debug("Filtered out Keycloak system roles: {}", filtered);
+                }
+            }
+        }
+
+        // 3. Extract client roles from Keycloak "resource_access" claim
+        if (claims.containsKey("resource_access")) {
+            Map<String, Object> resourceAccess = (Map<String, Object>) claims.get("resource_access");
+            resourceAccess.forEach((client, access) -> {
+                if (access instanceof Map) {
+                    Map<String, Object> clientAccess = (Map<String, Object>) access;
+                    if (clientAccess.containsKey("roles")) {
+                        List<String> roles = (List<String>) clientAccess.get("roles");
+                        roles.forEach(role -> {
+                            authorities.add(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
+                            logger.debug("Added Keycloak client role from {}: ROLE_{}", client, role.toUpperCase());
+                        });
+                    }
+                }
+            });
+        }
+
+        // 4. Extract group-based roles from Azure AD "groups" claim (optional)
         if (claims.containsKey("groups")) {
             Object groupsObj = claims.get("groups");
             if (groupsObj instanceof List) {
                 List<String> groups = (List<String>) groupsObj;
                 groups.forEach(groupId -> {
-                    // Group IDs are GUIDs - map them to role names if needed
-                    // For now, just log them. Specific mapping can be configured.
                     logger.debug("Azure AD group membership: {}", groupId);
                 });
             }
         }
 
+        // 5. Final pass: remove Keycloak system roles from ALL sources.
+        //    System roles may arrive from realm_access (step 2, already filtered),
+        //    from a top-level "roles" claim via Keycloak protocol mapper (step 1),
+        //    or from resource_access (step 3). This catch-all ensures none leak through.
+        int beforeSize = authorities.size();
+        authorities.removeIf(authority -> {
+            String roleName = authority.getAuthority();
+            if (roleName.startsWith("ROLE_")) {
+                roleName = roleName.substring(5);
+            }
+            return isKeycloakSystemRole(roleName);
+        });
+        if (authorities.size() < beforeSize) {
+            logger.debug("Final filter removed {} Keycloak system role(s) from authorities", beforeSize - authorities.size());
+        }
+
+        // 6. Fallback: if no recognized application roles were extracted, default to ROLE_INTERNAL_USER
+        //    This ensures internal users always get a baseline role even when the token only
+        //    contains Keycloak system roles (which are filtered out above) or no roles at all.
+        if (authorities.isEmpty()) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_INTERNAL_USER"));
+            logger.info("No application roles found in token claims, defaulting to ROLE_INTERNAL_USER");
+        }
+
+        logger.info("Final extracted authorities: {}", authorities);
         return authorities;
+    }
+
+    /**
+     * Check if a Keycloak realm role is a system/default role that should be excluded.
+     * <p>
+     * Keycloak automatically assigns these system roles to all users. They are not
+     * application-level roles and should not be synced to the database or included
+     * in JWT tokens.
+     *
+     * @param role the realm role name (e.g., "offline_access", "default-roles-raptor")
+     * @return true if the role is a Keycloak system role
+     */
+    private boolean isKeycloakSystemRole(String role) {
+        if (role == null) return true;
+        // Normalize: lowercase, convert both hyphens and underscores to a common form.
+        // This handles original Keycloak names (default-roles-raptor, offline_access)
+        // as well as normalized forms (DEFAULT_ROLES_RAPTOR, OFFLINE_ACCESS) that result
+        // from step 1's replace("-", "_") transformation.
+        String normalized = role.toLowerCase().replace("-", "_");
+        return normalized.startsWith("default_roles_")
+                || normalized.equals("offline_access")
+                || normalized.equals("uma_authorization");
     }
 }

@@ -59,9 +59,6 @@ public class ConfigController {
     @Value("${APP_ENV_NAME:Local}")
     private String appEnvName;
 
-    @Value("${app.enable-keycloak-internal:false}")
-    private boolean enableKeycloakInternal;
-
     /**
      * GET /api/config/environmentProperties
      * 
@@ -101,9 +98,6 @@ public class ConfigController {
         
         // API base URL (frontend determines this from its own location)
         config.put("apiBaseUrl", "");
-        
-        // Feature flags
-        config.put("enableKeycloakInternal", enableKeycloakInternal);
         
         return config;
     }

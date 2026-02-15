@@ -81,8 +81,7 @@ public class SecurityConfig {
                 
                 // Auth endpoints (no JWT required, uses OIDC / Azure AD)
                 .requestMatchers("/auth/login").permitAll()
-                .requestMatchers("/auth/sso-login").permitAll()  // Azure AD SSO login
-                .requestMatchers("/auth/internal-login").permitAll()  // Keycloak internal login
+                .requestMatchers("/auth/sso-login").permitAll()  // Azure AD SSO / Keycloak internal login
                 .requestMatchers("/auth/callback").permitAll()
                 .requestMatchers("/auth/refresh").permitAll()
                 .requestMatchers("/auth/logout").permitAll()  // Allow logout without authentication

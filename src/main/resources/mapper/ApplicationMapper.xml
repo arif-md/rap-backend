@@ -194,4 +194,33 @@
         WHERE owner_email = #{userEmail}
     </select>
 
+    <!-- Find Applications by University with Pagination -->
+    <select id="findByUniversityPaginated" resultMap="ApplicationResultMap">
+        SELECT 
+            id,
+            application_name,
+            application_code,
+            description,
+            status,
+            owner_name,
+            owner_email,
+            university_id,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        FROM RAP.application
+        WHERE university_id = #{universityId}
+        ORDER BY created_at DESC
+        OFFSET #{offset} ROWS
+        FETCH NEXT #{limit} ROWS ONLY
+    </select>
+
+    <!-- Count Applications by University -->
+    <select id="countByUniversity" resultType="long">
+        SELECT COUNT(*) 
+        FROM RAP.application
+        WHERE university_id = #{universityId}
+    </select>
+
 </mapper>

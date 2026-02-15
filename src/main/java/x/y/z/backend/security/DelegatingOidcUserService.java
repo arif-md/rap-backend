@@ -16,16 +16,16 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
  * from the OidcUserRequest and forwards to:
  * <ul>
  *   <li>{@link CustomOidcUserService} for "oidc-provider" (external users)</li>
- *   <li>{@link AzureAdOidcUserService} for "azure-ad" (internal SSO users)</li>
- *   <li>{@link AzureAdOidcUserService} for "keycloak-internal" (internal users via local Keycloak)</li>
+ *   <li>{@link AzureAdOidcUserService} for "azure-ad" (internal users — Azure AD in production, Keycloak in local dev)</li>
  * </ul>
+ * <p>
+ * In local development, the "azure-ad" registration points to the same Keycloak
+ * instance as "oidc-provider", allowing internal user testing without Azure AD.
+ * Roles are extracted from token claims (both Azure AD and Keycloak formats).
  */
 public class DelegatingOidcUserService extends OidcUserService {
 
     private static final Logger logger = LoggerFactory.getLogger(DelegatingOidcUserService.class);
-
-    /** Registration ID for Keycloak-based internal users (offline local dev fallback) */
-    public static final String KEYCLOAK_INTERNAL_REGISTRATION_ID = "keycloak-internal";
 
     private final CustomOidcUserService customOidcUserService;
     private final AzureAdOidcUserService azureAdOidcUserService;
@@ -53,13 +53,13 @@ public class DelegatingOidcUserService extends OidcUserService {
 
     /**
      * Check if a registration ID corresponds to an internal user provider.
-     * Internal providers assign ROLE_INTERNAL_USER instead of ROLE_EXTERNAL_USER.
+     * Only "azure-ad" is treated as internal — in local dev it points to Keycloak,
+     * in production it points to Azure Entra ID.
      * 
      * @param registrationId the OAuth2 client registration ID
      * @return true if the provider should be treated as internal
      */
     public static boolean isInternalProvider(String registrationId) {
-        return AzureAdOidcUserService.REGISTRATION_ID.equals(registrationId)
-                || KEYCLOAK_INTERNAL_REGISTRATION_ID.equals(registrationId);
+        return AzureAdOidcUserService.REGISTRATION_ID.equals(registrationId);
     }
 }

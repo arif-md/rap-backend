@@ -25,7 +25,7 @@ import java.util.Map;
  * 
  * Endpoints:
  * - GET /auth/login - Initiates OIDC login (redirects to external provider)
- * - GET /auth/sso-login - Initiates Azure Entra ID SSO login (redirects to Azure AD)
+ * - GET /auth/sso-login - Initiates Azure AD / Keycloak SSO login (redirects to internal provider)
  * - GET /auth/callback - Handles OIDC callback and generates JWT tokens
  * - POST /auth/refresh - Refreshes access token using refresh token
  * - POST /auth/logout - Revokes tokens and logs out user
@@ -67,8 +67,8 @@ public class AuthController {
     @Value("${spring.security.oauth2.client.registration.azure-ad.client-id:not-configured}")
     private String azureAdClientId;
 
-    @Value("${app.enable-keycloak-internal:false}")
-    private boolean enableKeycloakInternal;
+    @Value("${app.azure-ad.end-session-endpoint:}")
+    private String azureAdEndSessionEndpoint;
 
     public AuthController(
             UserService userService,
@@ -97,38 +97,17 @@ public class AuthController {
 
     /**
      * GET /auth/sso-login
-     * Initiates Azure Entra ID SSO login flow for internal users.
-     * Returns the Azure AD authorization URL that the frontend should redirect to.
+     * Initiates internal user login flow.
+     * In production, redirects to Azure Entra ID for SSO.
+     * In local development, redirects to Keycloak (azure-ad registration points to Keycloak).
      * 
-     * @return Authorization URL for Azure AD SSO
+     * @return Authorization URL for internal user login
      */
     @GetMapping("/sso-login")
     public ResponseEntity<Map<String, String>> ssoLogin() {
         Map<String, String> response = new HashMap<>();
-        response.put("message", "Redirecting to Azure Entra ID for SSO...");
+        response.put("message", "Redirecting to internal auth provider...");
         response.put("authorizationUrl", "/oauth2/authorization/azure-ad");
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * GET /auth/internal-login
-     * Initiates Keycloak-based internal user login for local development.
-     * Uses the same Keycloak server as oidc-provider but routes through
-     * AzureAdOidcUserService to assign ROLE_INTERNAL_USER.
-     * Only available when ENABLE_KEYCLOAK_INTERNAL=true.
-     * 
-     * @return Authorization URL for Keycloak Internal login
-     */
-    @GetMapping("/internal-login")
-    public ResponseEntity<Map<String, String>> internalLogin() {
-        if (!enableKeycloakInternal) {
-            Map<String, String> response = new HashMap<>();
-            response.put("error", "Keycloak internal login is not enabled");
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "Redirecting to Keycloak for internal user login...");
-        response.put("authorizationUrl", "/oauth2/authorization/keycloak-internal");
         return ResponseEntity.ok(response);
     }
 
@@ -323,16 +302,25 @@ public class AuthController {
             boolean isAzureAdProvider = "azure-ad".equals(authProvider);
 
             if (isAzureAdProvider) {
-                // Azure AD logout - redirect to Microsoft logout endpoint
-                String azureLogoutEndpoint = "https://login.microsoftonline.com/" 
-                        + azureAdTenantId + "/oauth2/v2.0/logout";
-                StringBuilder logoutUrlBuilder = new StringBuilder(azureLogoutEndpoint);
-                logoutUrlBuilder.append("?post_logout_redirect_uri=").append(postLogoutRedirectUri);
-                if (!"not-configured".equals(azureAdClientId)) {
-                    logoutUrlBuilder.append("&client_id=").append(azureAdClientId);
+                if (azureAdEndSessionEndpoint != null && !azureAdEndSessionEndpoint.isEmpty()) {
+                    // Configurable end-session endpoint (used when azure-ad points to Keycloak in local dev)
+                    StringBuilder logoutUrlBuilder = new StringBuilder(azureAdEndSessionEndpoint);
+                    logoutUrlBuilder.append("?client_id=").append(azureAdClientId);
+                    logoutUrlBuilder.append("&post_logout_redirect_uri=").append(postLogoutRedirectUri);
+                    oidcLogoutUrl = logoutUrlBuilder.toString();
+                    logger.info("Azure AD logout URL built from configured end-session-endpoint: {}", azureAdEndSessionEndpoint);
+                } else {
+                    // Azure AD logout - redirect to Microsoft logout endpoint (production)
+                    String azureLogoutEndpoint = "https://login.microsoftonline.com/" 
+                            + azureAdTenantId + "/oauth2/v2.0/logout";
+                    StringBuilder logoutUrlBuilder = new StringBuilder(azureLogoutEndpoint);
+                    logoutUrlBuilder.append("?post_logout_redirect_uri=").append(postLogoutRedirectUri);
+                    if (!"not-configured".equals(azureAdClientId)) {
+                        logoutUrlBuilder.append("&client_id=").append(azureAdClientId);
+                    }
+                    oidcLogoutUrl = logoutUrlBuilder.toString();
+                    logger.info("Azure AD logout URL built from Microsoft endpoint: {}", azureLogoutEndpoint);
                 }
-                oidcLogoutUrl = logoutUrlBuilder.toString();
-                logger.info("Azure AD logout URL built: {}", azureLogoutEndpoint);
             } else if (oidcEndSessionEndpoint != null && !oidcEndSessionEndpoint.isEmpty() && oidcClientId != null) {
                 // OIDC provider (Keycloak) logout
                 StringBuilder logoutUrlBuilder = new StringBuilder(oidcEndSessionEndpoint);

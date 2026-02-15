@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Custom OIDC User Service that extracts user information from ID Token claims only.
@@ -177,6 +178,8 @@ public class CustomOidcUserService extends OidcUserService {
     /**
      * Extract authorities from ID Token claims.
      * Looks for realm_access.roles and resource_access claims from Keycloak.
+     * Keycloak system/default roles (e.g., default-roles-*, offline_access, uma_authorization)
+     * are filtered out to prevent them from masking the fallback to ROLE_EXTERNAL_USER.
      */
     @SuppressWarnings("unchecked")
     private Set<GrantedAuthority> extractAuthorities(Map<String, Object> claims) {
@@ -185,15 +188,22 @@ public class CustomOidcUserService extends OidcUserService {
         // Add default authenticated authority
         //authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
         
-        // Extract realm roles from ID Token
+        // Extract realm roles from ID Token (filtering out Keycloak system roles)
         if (claims.containsKey("realm_access")) {
             Map<String, Object> realmAccess = (Map<String, Object>) claims.get("realm_access");
             if (realmAccess.containsKey("roles")) {
                 List<String> roles = (List<String>) realmAccess.get("roles");
-                roles.forEach(role -> {
-                    authorities.add(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
-                    logger.debug("Added realm role: ROLE_{}", role.toUpperCase());
-                });
+                roles.stream()
+                    .filter(role -> !isKeycloakSystemRole(role))
+                    .forEach(role -> {
+                        authorities.add(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
+                        logger.debug("Added realm role: ROLE_{}", role.toUpperCase());
+                    });
+                // Log filtered roles for troubleshooting
+                List<String> filtered = roles.stream().filter(this::isKeycloakSystemRole).collect(Collectors.toList());
+                if (!filtered.isEmpty()) {
+                    logger.debug("Filtered out Keycloak system roles: {}", filtered);
+                }
             }
         }
         
@@ -214,12 +224,48 @@ public class CustomOidcUserService extends OidcUserService {
             });
         }
         
-        // If no roles from OIDC provider, default to ROLE_EXTERNAL_USER
-        if (authorities.size() == 0){// && authorities.stream().allMatch(a -> a.getAuthority().equals("ROLE_USER"))) {
-            logger.info("No specific roles from OIDC provider, defaulting to ROLE_EXTERNAL_USER");
+        // Final pass: remove Keycloak system roles from ALL sources.
+        // System roles may arrive from realm_access (already filtered above) or from
+        // resource_access client roles. This catch-all ensures none leak through.
+        int beforeSize = authorities.size();
+        authorities.removeIf(authority -> {
+            String roleName = authority.getAuthority();
+            if (roleName.startsWith("ROLE_")) {
+                roleName = roleName.substring(5);
+            }
+            return isKeycloakSystemRole(roleName);
+        });
+        if (authorities.size() < beforeSize) {
+            logger.debug("Final filter removed {} Keycloak system role(s) from authorities", beforeSize - authorities.size());
+        }
+
+        // If no application roles from OIDC provider, default to ROLE_EXTERNAL_USER
+        if (authorities.isEmpty()) {
+            logger.info("No application roles from OIDC provider, defaulting to ROLE_EXTERNAL_USER");
             authorities.add(new SimpleGrantedAuthority("ROLE_EXTERNAL_USER"));
         }
         
+        logger.info("Final extracted authorities: {}", authorities);
         return authorities;
+    }
+
+    /**
+     * Check if a Keycloak realm role is a system/default role that should be excluded.
+     * <p>
+     * Keycloak automatically assigns these system roles to all users. They are not
+     * application-level roles and should not be synced to the database or included
+     * in JWT tokens.
+     *
+     * @param role the realm role name (e.g., "offline_access", "default-roles-raptor")
+     * @return true if the role is a Keycloak system role
+     */
+    private boolean isKeycloakSystemRole(String role) {
+        if (role == null) return true;
+        // Normalize: lowercase, convert hyphens to underscores to handle both
+        // original Keycloak names (default-roles-raptor) and any normalized forms.
+        String normalized = role.toLowerCase().replace("-", "_");
+        return normalized.startsWith("default_roles_")
+                || normalized.equals("offline_access")
+                || normalized.equals("uma_authorization");
     }
 }

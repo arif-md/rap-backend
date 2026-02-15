@@ -38,6 +38,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
     private final UserService userService;
     private final JwtTokenService jwtTokenService;
+    private final JwtTokenUtil jwtTokenUtil;
 
     @Value("${frontend.url:http://localhost:4200}")
     private String frontendUrl;
@@ -50,9 +51,11 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
     public OAuth2AuthenticationSuccessHandler(
             UserService userService,
-            JwtTokenService jwtTokenService) {
+            JwtTokenService jwtTokenService,
+            JwtTokenUtil jwtTokenUtil) {
         this.userService = userService;
         this.jwtTokenService = jwtTokenService;
+        this.jwtTokenUtil = jwtTokenUtil;
     }
 
     @Override
@@ -94,7 +97,9 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
             // Generate JWT tokens
             JwtTokenService.TokenPair tokens = jwtTokenService.generateTokens(user.getId());
-            logger.debug("JWT tokens generated for user ID: {}", user.getId());
+            logger.info("JWT tokens generated for user ID: {}. JWT roles from DB: {}", 
+                user.getId(), 
+                jwtTokenUtil.getRolesFromToken(tokens.getAccessToken()));
 
             // Set access token cookie (15 minutes)
             Cookie accessTokenCookie = createCookie(

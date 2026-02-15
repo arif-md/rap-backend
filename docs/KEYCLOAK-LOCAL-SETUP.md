@@ -170,10 +170,12 @@ The realm is now created and you'll be taken to the realm settings page.
 5. **Login settings** tab:
    - **Root URL**: `http://localhost:4200`
    - **Home URL**: `http://localhost:4200`
-   - **Valid redirect URIs**: 
+   - **Valid redirect URIs** (add all four):
      ```
      http://localhost:8080/login/oauth2/code/oidc-provider
-     http://localhost:8080/login/oauth2/code/*
+     http://localhost:8080/login/oauth2/code/oidc-provider/*
+     http://localhost:8080/login/oauth2/code/azure-ad
+     http://localhost:8080/login/oauth2/code/azure-ad/*
      ```
    - **Valid post logout redirect URIs**: 
      ```
@@ -182,6 +184,12 @@ The realm is now created and you'll be taken to the realm settings page.
      ```
    - **Web origins**: `http://localhost:8080`
    - Click **"Save"**
+
+**Why two redirect URI patterns?** The same Keycloak `raptor-client` is shared by two Spring Security OAuth2 registrations:
+- `oidc-provider` — used for **external user** login ("Sign in with OIDC Provider" button)
+- `azure-ad` — used for **internal user** login ("Sign in with Microsoft (SSO)" button)
+
+In local development, both registrations point to this Keycloak instance. In production, `azure-ad` points to real Azure Entra ID instead.
 
 **Note**: Since we're using PKCE (Client authentication OFF), you don't need to copy a client secret. The backend Spring Security OAuth2 client will automatically generate and use PKCE code verifiers.
 
@@ -288,25 +296,54 @@ Instead of custom attributes, use Keycloak roles:
 
 1. In the left sidebar, click **"Realm roles"**
 2. Click **"Create role"**
-3. Create **ADMIN** role:
-   - **Role name**: `ADMIN`
-   - **Description**: `Administrator role`
+3. Create **EXTERNAL_USER** role:
+   - **Role name**: `EXTERNAL_USER`
+   - **Description**: `External user role — users who log in via the OIDC provider`
    - Click **"Save"**
-4. Repeat for **USER** role:
-   - **Role name**: `USER`
-   - **Description**: `Regular user role`
+4. Create **INTERNAL_USER** role:
+   - **Role name**: `INTERNAL_USER`
+   - **Description**: `Internal user role — staff who log in via SSO (Azure AD / Keycloak)`
+   - Click **"Save"**
+5. Optionally create **ADMIN** and **USER** roles:
+   - **Role name**: `ADMIN` / `USER`
+   - **Description**: `Administrator role` / `Regular user role`
    - Click **"Save"**
 
+> **Important**: The `EXTERNAL_USER` and `INTERNAL_USER` roles control which dashboard
+> a user sees after login. External users see the public application dashboard;
+> internal users see the staff/admin dashboard.
+
 ### 7.2 Assign Roles to Users
+
+**External user** (e.g., `user@raptor.local`):
+
+1. Click **"Users"** in sidebar
+2. Click on the external test user
+3. Click **"Role mapping"** tab
+4. Click **"Assign role"**
+5. Check **"EXTERNAL_USER"**
+6. Click **"Assign"**
+
+**Internal user** (e.g., `admin@raptor.local`):
 
 1. Click **"Users"** in sidebar
 2. Click on `admin@raptor.local`
 3. Click **"Role mapping"** tab
 4. Click **"Assign role"**
-5. Check **"ADMIN"** and **"USER"**
+5. Check **"INTERNAL_USER"** (and optionally **"ADMIN"**)
 6. Click **"Assign"**
 
-Repeat for regular user (assign only **"USER"** role).
+> **How it works**: When a user logs in, the backend reads the assigned realm roles
+> from the Keycloak token's `realm_access.roles` claim. The role determines:
+> - Which dashboard view is shown (external vs internal)
+> - Which API endpoints are accessible (`@PreAuthorize` annotations)
+> - The `isExternalUser` flag returned by `/auth/user` and `/auth/check`
+>
+> A user logging in via the **"Sign in with OIDC Provider"** button uses the
+> `oidc-provider` registration (external path). A user logging in via
+> **"Sign in with Microsoft (SSO)"** uses the `azure-ad` registration (internal path).
+> In local development both point to Keycloak, so the **role assignment** is what
+> determines external vs internal behavior.
 
 ### 7.3 Add Roles to Token (Configure Mapper)
 
