@@ -15,6 +15,7 @@ public class Application {
     private String status;
     private String ownerName;
     private String ownerEmail;
+    private Long universityId;
     private LocalDateTime createdAt;
     private String createdBy;
     private LocalDateTime updatedAt;
@@ -90,6 +91,14 @@ public class Application {
 
     public void setOwnerEmail(String ownerEmail) {
         this.ownerEmail = ownerEmail;
+    }
+
+    public Long getUniversityId() {
+        return universityId;
+    }
+
+    public void setUniversityId(Long universityId) {
+        this.universityId = universityId;
     }
 
     public LocalDateTime getCreatedAt() {

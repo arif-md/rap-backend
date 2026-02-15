@@ -193,6 +193,24 @@ public class ApplicationService {
         return applicationHandler.findByUserPaginated(userEmail, page, size);
     }
 
+    /**
+     * Get applications for a specific university with pagination.
+     * Used by internal users to view applications by university.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<Application> getApplicationsByUniversity(Long universityId, int page, int size) {
+        if (page < 0) {
+            throw new IllegalArgumentException("Page number cannot be negative");
+        }
+        if (size <= 0 || size > 100) {
+            throw new IllegalArgumentException("Page size must be between 1 and 100");
+        }
+        if (universityId == null) {
+            throw new IllegalArgumentException("University ID is required");
+        }
+        return applicationHandler.findByUniversityPaginated(universityId, page, size);
+    }
+
     // =========================================================================
     // BUSINESS LOGIC HELPER METHODS
     // =========================================================================

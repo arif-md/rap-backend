@@ -121,4 +121,11 @@ public class PermitHandler {
         
         return new PageResponse<>(permits, page, size, totalElements);
     }
+
+    public PageResponse<Permit> findByUniversityPaginated(Long universityId, int page, int size) {
+        int offset = page * size;
+        List<Permit> permits = permitMapper.findByUniversityPaginated(universityId, offset, size);
+        long totalElements = permitMapper.countByUniversity(universityId);
+        return new PageResponse<>(permits, page, size, totalElements);
+    }
 }

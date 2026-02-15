@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -218,6 +219,7 @@ public class ApplicationController {
      * GET /api/applications/my?page=0&size=10
      */
     @GetMapping("/my")
+    @PreAuthorize("hasRole('EXTERNAL_USER')")
     public ResponseEntity<PageResponse<ApplicationResponse>> getMyApplications(
             @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
             @RequestParam(name = "size", defaultValue = "10") @Min(1) int size,
@@ -242,6 +244,25 @@ public class ApplicationController {
             applicationPage.getTotalElements()
         );
         
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/university/{universityId}")
+    @PreAuthorize("hasRole('INTERNAL_USER')")
+    public ResponseEntity<PageResponse<ApplicationResponse>> getApplicationsByUniversity(
+            @PathVariable Long universityId,
+            @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
+            @RequestParam(name = "size", defaultValue = "10") @Min(1) int size) {
+        PageResponse<Application> applicationPage = applicationService.getApplicationsByUniversity(universityId, page, size);
+        List<ApplicationResponse> content = applicationPage.getContent().stream()
+            .map(dtoMapper::toDto)
+            .collect(Collectors.toList());
+        PageResponse<ApplicationResponse> response = new PageResponse<>(
+            content,
+            applicationPage.getPage(),
+            applicationPage.getSize(),
+            applicationPage.getTotalElements()
+        );
         return ResponseEntity.ok(response);
     }
 

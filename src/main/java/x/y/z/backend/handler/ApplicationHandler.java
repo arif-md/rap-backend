@@ -121,4 +121,11 @@ public class ApplicationHandler {
         
         return new PageResponse<>(applications, page, size, totalElements);
     }
+
+    public PageResponse<Application> findByUniversityPaginated(Long universityId, int page, int size) {
+        int offset = page * size;
+        List<Application> applications = applicationMapper.findByUniversityPaginated(universityId, offset, size);
+        long totalElements = applicationMapper.countByUniversity(universityId);
+        return new PageResponse<>(applications, page, size, totalElements);
+    }
 }

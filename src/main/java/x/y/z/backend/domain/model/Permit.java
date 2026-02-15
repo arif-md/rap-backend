@@ -18,6 +18,7 @@ public class Permit {
     private LocalDate issueDate;
     private LocalDate expiryDate;
     private UUID holderId;  // User ID who holds this permit
+    private Long universityId;
     private String description;
     private LocalDateTime createdAt;
     private String createdBy;
@@ -95,6 +96,14 @@ public class Permit {
 
     public void setHolderId(UUID holderId) {
         this.holderId = holderId;
+    }
+
+    public Long getUniversityId() {
+        return universityId;
+    }
+
+    public void setUniversityId(Long universityId) {
+        this.universityId = universityId;
     }
 
     public String getDescription() {

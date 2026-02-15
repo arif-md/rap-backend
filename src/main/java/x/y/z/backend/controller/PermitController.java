@@ -2,6 +2,7 @@ package x.y.z.backend.controller;
 
 import jakarta.validation.constraints.Min;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -38,6 +39,7 @@ public class PermitController {
      * GET /api/permits/my?page=0&size=10
      */
     @GetMapping("/my")
+    @PreAuthorize("hasRole('EXTERNAL_USER')")
     public ResponseEntity<PageResponse<Permit>> getMyPermits(
             @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
             @RequestParam(name = "size", defaultValue = "10") @Min(1) int size) {
@@ -73,6 +75,20 @@ public class PermitController {
         Permit permit = permitService.getPermitByNumber(permitNumber);
         
         return ResponseEntity.ok(permit);
+    }
+
+    /**
+     * Get permits for a specific university with pagination.
+     * GET /api/permits/university/{universityId}?page=0&size=10
+     */
+    @GetMapping("/university/{universityId}")
+    @PreAuthorize("hasRole('INTERNAL_USER')")
+    public ResponseEntity<PageResponse<Permit>> getPermitsByUniversity(
+            @PathVariable Long universityId,
+            @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
+            @RequestParam(name = "size", defaultValue = "10") @Min(1) int size) {
+        PageResponse<Permit> permitPage = permitService.getPermitsByUniversity(universityId, page, size);
+        return ResponseEntity.ok(permitPage);
     }
 
     /**

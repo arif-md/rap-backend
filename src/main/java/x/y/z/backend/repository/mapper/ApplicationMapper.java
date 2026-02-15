@@ -82,4 +82,11 @@ public interface ApplicationMapper {
      * @param userEmail The user's email address
      */
     long countByUser(@Param("userEmail") String userEmail);
+
+    List<Application> findByUniversityPaginated(
+        @Param("universityId") Long universityId,
+        @Param("offset") int offset,
+        @Param("limit") int limit
+    );
+    long countByUniversity(@Param("universityId") Long universityId);
 }

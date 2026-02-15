@@ -82,4 +82,11 @@ public interface PermitMapper {
      * Check if permit number exists
      */
     boolean existsByPermitNumber(@Param("permitNumber") String permitNumber);
+
+    List<Permit> findByUniversityPaginated(
+        @Param("universityId") Long universityId,
+        @Param("offset") int offset,
+        @Param("limit") int limit
+    );
+    long countByUniversity(@Param("universityId") Long universityId);
 }

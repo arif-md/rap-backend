@@ -13,6 +13,7 @@
         <result property="issueDate" column="issue_date"/>
         <result property="expiryDate" column="expiry_date"/>
         <result property="holderId" column="holder_id"/>
+        <result property="universityId" column="university_id"/>
         <result property="description" column="description"/>
         <result property="createdAt" column="created_at"/>
         <result property="createdBy" column="created_by"/>
@@ -201,6 +202,20 @@
         SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END
         FROM RAP.permit
         WHERE permit_number = #{permitNumber}
+    </select>
+
+    <!-- Find Permits by University with Pagination -->
+    <select id="findByUniversityPaginated" resultMap="PermitResultMap">
+        SELECT id, permit_number, permit_type, status, issue_date, expiry_date,
+               holder_id, university_id, description, created_at, created_by, updated_at, updated_by
+        FROM RAP.permit WHERE university_id = #{universityId}
+        ORDER BY issue_date DESC
+        OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
+    </select>
+
+    <!-- Count Permits by University -->
+    <select id="countByUniversity" resultType="long">
+        SELECT COUNT(*) FROM RAP.permit WHERE university_id = #{universityId}
     </select>
 
 </mapper>

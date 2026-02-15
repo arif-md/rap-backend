@@ -205,6 +205,24 @@ public class PermitService {
         return permitHandler.findByUserPaginated(user.getId().toString(), page, size);
     }
 
+    /**
+     * Get permits for a specific university with pagination.
+     * Used by internal users to view permits by university.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<Permit> getPermitsByUniversity(Long universityId, int page, int size) {
+        if (page < 0) {
+            throw new IllegalArgumentException("Page number cannot be negative");
+        }
+        if (size <= 0 || size > 100) {
+            throw new IllegalArgumentException("Page size must be between 1 and 100");
+        }
+        if (universityId == null) {
+            throw new IllegalArgumentException("University ID is required");
+        }
+        return permitHandler.findByUniversityPaginated(universityId, page, size);
+    }
+
     // =========================================================================
     // BUSINESS LOGIC HELPER METHODS
     // =========================================================================
