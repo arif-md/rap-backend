@@ -17,12 +17,14 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * SecurityConfig - Spring Security configuration for OIDC authentication and JWT-based authorization.
+ * SecurityConfig - Spring Security configuration for dual authentication:
+ * 1. OIDC Provider (external users) - Custom OIDC provider (e.g., Keycloak, Identity Sandbox)
+ * 2. Azure Entra ID SSO (internal users) - Azure AD for internal staff
  * 
  * Security Flow:
- * 1. User initiates login → redirects to OIDC provider
- * 2. OIDC provider authenticates → redirects back to /auth/callback
- * 3. Backend validates OIDC token → creates/updates user → generates JWT
+ * 1. User initiates login → redirects to OIDC provider or Azure AD
+ * 2. Provider authenticates → redirects back to /login/oauth2/code/{registrationId}
+ * 3. Backend validates token → creates/updates user → generates JWT
  * 4. Frontend stores JWT in httpOnly cookie
  * 5. All subsequent requests include JWT → validated by JwtAuthenticationFilter
  */
@@ -34,6 +36,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final OAuth2AuthenticationSuccessHandler oauth2SuccessHandler;
     private final CustomOidcUserService customOidcUserService;
+    private final AzureAdOidcUserService azureAdOidcUserService;
     private final CustomAuthorizationRequestResolver authorizationRequestResolver;
     
     @Value("${cors.allowed-origins}")
@@ -43,10 +46,12 @@ public class SecurityConfig {
             JwtAuthenticationFilter jwtAuthenticationFilter,
             OAuth2AuthenticationSuccessHandler oauth2SuccessHandler,
             CustomOidcUserService customOidcUserService,
+            AzureAdOidcUserService azureAdOidcUserService,
             CustomAuthorizationRequestResolver authorizationRequestResolver) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.oauth2SuccessHandler = oauth2SuccessHandler;
         this.customOidcUserService = customOidcUserService;
+        this.azureAdOidcUserService = azureAdOidcUserService;
         this.authorizationRequestResolver = authorizationRequestResolver;
     }
 
@@ -74,24 +79,30 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers("/error").permitAll()
                 
-                // Auth endpoints (no JWT required, uses OIDC)
+                // Auth endpoints (no JWT required, uses OIDC / Azure AD)
                 .requestMatchers("/auth/login").permitAll()
+                .requestMatchers("/auth/sso-login").permitAll()  // Azure AD SSO login
+                .requestMatchers("/auth/internal-login").permitAll()  // Keycloak internal login
                 .requestMatchers("/auth/callback").permitAll()
                 .requestMatchers("/auth/refresh").permitAll()
                 .requestMatchers("/auth/logout").permitAll()  // Allow logout without authentication
+                
+                // OAuth2 authorization endpoints (Spring Security auto-registers these)
+                .requestMatchers("/oauth2/authorization/**").permitAll()
+                .requestMatchers("/login/oauth2/code/**").permitAll()
                 
                 // All other endpoints require authentication
                 .anyRequest().authenticated()
             )
             
-            // OAuth2 Login configuration
+            // OAuth2 Login configuration - supports both OIDC provider and Azure AD
             .oauth2Login(oauth2 -> oauth2
                 .loginPage("/auth/login")
                 .authorizationEndpoint(authorization -> authorization
                     .authorizationRequestResolver(authorizationRequestResolver)
                 )
                 .userInfoEndpoint(userInfo -> userInfo
-                    .oidcUserService(customOidcUserService)  // Use custom OIDC user service
+                    .oidcUserService(new DelegatingOidcUserService(customOidcUserService, azureAdOidcUserService))
                 )
                 .successHandler(oauth2SuccessHandler)  // Use custom success handler
                 .failureUrl("/auth/login?error=true")

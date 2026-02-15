@@ -24,11 +24,13 @@ import java.util.Map;
  * AuthController - REST Controller for authentication and token management.
  * 
  * Endpoints:
- * - POST /auth/login - Initiates OIDC login (redirects to provider)
+ * - GET /auth/login - Initiates OIDC login (redirects to external provider)
+ * - GET /auth/sso-login - Initiates Azure Entra ID SSO login (redirects to Azure AD)
  * - GET /auth/callback - Handles OIDC callback and generates JWT tokens
  * - POST /auth/refresh - Refreshes access token using refresh token
  * - POST /auth/logout - Revokes tokens and logs out user
  * - GET /auth/user - Get current authenticated user info
+ * - GET /auth/check - Check session validity
  */
 @RestController
 @RequestMapping("/auth")
@@ -59,6 +61,15 @@ public class AuthController {
     @Value("${oidc.logout.include-id-token-hint:true}")
     private boolean includeIdTokenHint;
 
+    @Value("${AZURE_AD_TENANT_ID:common}")
+    private String azureAdTenantId;
+    
+    @Value("${spring.security.oauth2.client.registration.azure-ad.client-id:not-configured}")
+    private String azureAdClientId;
+
+    @Value("${app.enable-keycloak-internal:false}")
+    private boolean enableKeycloakInternal;
+
     public AuthController(
             UserService userService,
             JwtTokenService jwtTokenService,
@@ -81,6 +92,43 @@ public class AuthController {
         Map<String, String> response = new HashMap<>();
         response.put("message", "Redirecting to OIDC provider...");
         response.put("authorizationUrl", "/oauth2/authorization/oidc-provider");
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * GET /auth/sso-login
+     * Initiates Azure Entra ID SSO login flow for internal users.
+     * Returns the Azure AD authorization URL that the frontend should redirect to.
+     * 
+     * @return Authorization URL for Azure AD SSO
+     */
+    @GetMapping("/sso-login")
+    public ResponseEntity<Map<String, String>> ssoLogin() {
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Redirecting to Azure Entra ID for SSO...");
+        response.put("authorizationUrl", "/oauth2/authorization/azure-ad");
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * GET /auth/internal-login
+     * Initiates Keycloak-based internal user login for local development.
+     * Uses the same Keycloak server as oidc-provider but routes through
+     * AzureAdOidcUserService to assign ROLE_INTERNAL_USER.
+     * Only available when ENABLE_KEYCLOAK_INTERNAL=true.
+     * 
+     * @return Authorization URL for Keycloak Internal login
+     */
+    @GetMapping("/internal-login")
+    public ResponseEntity<Map<String, String>> internalLogin() {
+        if (!enableKeycloakInternal) {
+            Map<String, String> response = new HashMap<>();
+            response.put("error", "Keycloak internal login is not enabled");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Redirecting to Keycloak for internal user login...");
+        response.put("authorizationUrl", "/oauth2/authorization/keycloak-internal");
         return ResponseEntity.ok(response);
     }
 
@@ -226,6 +274,8 @@ public class AuthController {
      * POST /auth/logout
      * Logs out user by revoking access token and refresh token.
      * Clears authentication cookies.
+     * Provider-aware: reads auth_provider cookie to determine the correct
+     * end-session URL (OIDC provider / Keycloak vs Azure AD).
      * 
      * @param request HTTP request to extract tokens
      * @param response HTTP response to clear cookies
@@ -251,30 +301,45 @@ public class AuthController {
                 jwtTokenService.revokeRefreshToken(refreshToken);
             }
 
-            // Extract ID token for OIDC logout
+            // Extract ID token and auth provider for provider-aware logout
             String idToken = extractTokenFromCookie(request, "id_token");
+            String authProvider = extractTokenFromCookie(request, "auth_provider");
+            logger.info("Logout requested - auth_provider cookie: {}", authProvider);
 
-            // Clear cookies
+            // Clear all authentication cookies (including auth_provider)
             Cookie accessTokenCookie = createCookie("access_token", "", 0);
             Cookie refreshTokenCookie = createCookie("refresh_token", "", 0);
             Cookie idTokenCookie = createCookie("id_token", "", 0);
+            Cookie authProviderCookie = createCookie("auth_provider", "", 0);
             response.addCookie(accessTokenCookie);
             response.addCookie(refreshTokenCookie);
             response.addCookie(idTokenCookie);
+            response.addCookie(authProviderCookie);
 
-            // Build OIDC logout URL (RP-Initiated Logout)
-            // This terminates the session at the OIDC provider
+            // Build provider-aware logout URL (RP-Initiated Logout)
             String oidcLogoutUrl = null;
-            if (oidcEndSessionEndpoint != null && !oidcEndSessionEndpoint.isEmpty() && oidcClientId != null) {
-                String postLogoutRedirectUri = frontendUrl + "/sign-in?logout=success";
-                
-                // Build logout URL with client_id (required by most providers)
+            String postLogoutRedirectUri = frontendUrl + "/sign-in?logout=success";
+
+            boolean isAzureAdProvider = "azure-ad".equals(authProvider);
+
+            if (isAzureAdProvider) {
+                // Azure AD logout - redirect to Microsoft logout endpoint
+                String azureLogoutEndpoint = "https://login.microsoftonline.com/" 
+                        + azureAdTenantId + "/oauth2/v2.0/logout";
+                StringBuilder logoutUrlBuilder = new StringBuilder(azureLogoutEndpoint);
+                logoutUrlBuilder.append("?post_logout_redirect_uri=").append(postLogoutRedirectUri);
+                if (!"not-configured".equals(azureAdClientId)) {
+                    logoutUrlBuilder.append("&client_id=").append(azureAdClientId);
+                }
+                oidcLogoutUrl = logoutUrlBuilder.toString();
+                logger.info("Azure AD logout URL built: {}", azureLogoutEndpoint);
+            } else if (oidcEndSessionEndpoint != null && !oidcEndSessionEndpoint.isEmpty() && oidcClientId != null) {
+                // OIDC provider (Keycloak) logout
                 StringBuilder logoutUrlBuilder = new StringBuilder(oidcEndSessionEndpoint);
                 logoutUrlBuilder.append("?client_id=").append(oidcClientId);
                 logoutUrlBuilder.append("&post_logout_redirect_uri=").append(postLogoutRedirectUri);
                 
                 // Add id_token_hint if configured and available
-                // Some providers require it (e.g., Keycloak), others reject it (custom providers)
                 if (includeIdTokenHint && idToken != null) {
                     logoutUrlBuilder.append("&id_token_hint=").append(idToken);
                     logger.info("OIDC logout URL built with client_id and id_token_hint");
@@ -285,11 +350,11 @@ public class AuthController {
                 
                 oidcLogoutUrl = logoutUrlBuilder.toString();
             } else {
-                logger.warn("OIDC logout not available - endpoint: {}, clientId: {}", 
-                    oidcEndSessionEndpoint, oidcClientId);
+                logger.warn("OIDC logout not available - provider: {}, endpoint: {}, clientId: {}", 
+                    authProvider, oidcEndSessionEndpoint, oidcClientId);
             }
 
-            // Return success response with OIDC logout URL
+            // Return success response with provider-aware logout URL
             Map<String, Object> responseBody = new HashMap<>();
             responseBody.put("success", true);
             responseBody.put("message", "Logout successful");
