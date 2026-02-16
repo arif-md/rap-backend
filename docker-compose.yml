@@ -59,6 +59,15 @@ services:
       - OIDC_ADDL_REQ_PARAM_ACR_VALUES=${OIDC_ADDL_REQ_PARAM_ACR_VALUES:-}
       - OIDC_ADDL_REQ_PARAM_PROMPT=${OIDC_ADDL_REQ_PARAM_PROMPT:-}
       - OIDC_ADDL_REQ_PARAM_RESPONSE_TYPE=${OIDC_ADDL_REQ_PARAM_RESPONSE_TYPE:-}
+      # Azure AD / Internal User Login
+      - AZURE_AD_TENANT_ID=${AZURE_AD_TENANT_ID:-common}
+      - AZURE_AD_CLIENT_ID=${AZURE_AD_CLIENT_ID:-raptor-client}
+      - AZURE_AD_CLIENT_SECRET=${AZURE_AD_CLIENT_SECRET:-}
+      - AAD_AUTHORIZATION_ENDPOINT=${AAD_AUTHORIZATION_ENDPOINT:-http://localhost:9090/realms/raptor/protocol/openid-connect/auth}
+      - AAD_TOKEN_ENDPOINT=${AAD_TOKEN_ENDPOINT:-http://host.docker.internal:9090/realms/raptor/protocol/openid-connect/token}
+      - AAD_USER_INFO_ENDPOINT=${AAD_USER_INFO_ENDPOINT:-http://host.docker.internal:9090/realms/raptor/protocol/openid-connect/userinfo}
+      - AAD_JWK_SET_URI=${AAD_JWK_SET_URI:-http://host.docker.internal:9090/realms/raptor/protocol/openid-connect/certs}
+      - AAD_END_SESSION_ENDPOINT=${AAD_END_SESSION_ENDPOINT:-http://localhost:9090/realms/raptor/protocol/openid-connect/logout}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:4200}
       
       # CORS Configuration
