@@ -38,6 +38,12 @@
         WHERE university_code = #{universityCode}
     </select>
 
+    <select id="findByName" resultMap="UniversityResultMap">
+        SELECT id, university_name, university_code, status, created_at, updated_at
+        FROM RAP.university
+        WHERE university_name = #{universityName}
+    </select>
+
     <select id="count" resultType="long">
         SELECT COUNT(*) FROM RAP.university
     </select>

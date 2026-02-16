@@ -14,6 +14,7 @@
         <result property="expiryDate" column="expiry_date"/>
         <result property="holderId" column="holder_id"/>
         <result property="universityId" column="university_id"/>
+        <result property="universityName" column="university_name"/>
         <result property="description" column="description"/>
         <result property="createdAt" column="created_at"/>
         <result property="createdBy" column="created_by"/>
@@ -126,21 +127,24 @@
     <!-- Find Permits by User with Pagination -->
     <select id="findByUserPaginated" resultMap="PermitResultMap">
         SELECT 
-            id,
-            permit_number,
-            permit_type,
-            status,
-            issue_date,
-            expiry_date,
-            holder_id,
-            description,
-            created_at,
-            created_by,
-            updated_at,
-            updated_by
-        FROM RAP.permit
-        WHERE holder_id = #{holderId}
-        ORDER BY issue_date DESC
+            p.id,
+            p.permit_number,
+            p.permit_type,
+            p.status,
+            p.issue_date,
+            p.expiry_date,
+            p.holder_id,
+            p.university_id,
+            u.university_name,
+            p.description,
+            p.created_at,
+            p.created_by,
+            p.updated_at,
+            p.updated_by
+        FROM RAP.permit p
+        LEFT JOIN RAP.university u ON p.university_id = u.id
+        WHERE p.holder_id = #{holderId}
+        ORDER BY p.issue_date DESC
         OFFSET #{offset} ROWS
         FETCH NEXT #{limit} ROWS ONLY
     </select>
@@ -206,10 +210,13 @@
 
     <!-- Find Permits by University with Pagination -->
     <select id="findByUniversityPaginated" resultMap="PermitResultMap">
-        SELECT id, permit_number, permit_type, status, issue_date, expiry_date,
-               holder_id, university_id, description, created_at, created_by, updated_at, updated_by
-        FROM RAP.permit WHERE university_id = #{universityId}
-        ORDER BY issue_date DESC
+        SELECT p.id, p.permit_number, p.permit_type, p.status, p.issue_date, p.expiry_date,
+               p.holder_id, p.university_id, u.university_name, p.description,
+               p.created_at, p.created_by, p.updated_at, p.updated_by
+        FROM RAP.permit p
+        LEFT JOIN RAP.university u ON p.university_id = u.id
+        WHERE p.university_id = #{universityId}
+        ORDER BY p.issue_date DESC
         OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
     </select>
 

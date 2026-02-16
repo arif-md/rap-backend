@@ -19,6 +19,7 @@ public class Permit {
     private LocalDate expiryDate;
     private UUID holderId;  // User ID who holds this permit
     private Long universityId;
+    private String universityName; // Transient - populated via JOIN
     private String description;
     private LocalDateTime createdAt;
     private String createdBy;
@@ -104,6 +105,14 @@ public class Permit {
 
     public void setUniversityId(Long universityId) {
         this.universityId = universityId;
+    }
+
+    public String getUniversityName() {
+        return universityName;
+    }
+
+    public void setUniversityName(String universityName) {
+        this.universityName = universityName;
     }
 
     public String getDescription() {

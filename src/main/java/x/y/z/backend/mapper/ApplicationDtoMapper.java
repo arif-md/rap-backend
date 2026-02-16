@@ -64,6 +64,8 @@ public class ApplicationDtoMapper {
             application.getStatus(),
             application.getOwnerName(),
             application.getOwnerEmail(),
+            application.getUniversityId(),
+            application.getUniversityName(),
             application.getCreatedAt(),
             application.getCreatedBy(),
             application.getUpdatedAt(),

@@ -16,6 +16,7 @@ public class Application {
     private String ownerName;
     private String ownerEmail;
     private Long universityId;
+    private String universityName; // Transient - populated via JOIN
     private LocalDateTime createdAt;
     private String createdBy;
     private LocalDateTime updatedAt;
@@ -99,6 +100,14 @@ public class Application {
 
     public void setUniversityId(Long universityId) {
         this.universityId = universityId;
+    }
+
+    public String getUniversityName() {
+        return universityName;
+    }
+
+    public void setUniversityName(String universityName) {
+        this.universityName = universityName;
     }
 
     public LocalDateTime getCreatedAt() {

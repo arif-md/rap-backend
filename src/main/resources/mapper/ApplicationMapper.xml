@@ -14,6 +14,7 @@
         <result property="ownerName" column="owner_name"/>
         <result property="ownerEmail" column="owner_email"/>
         <result property="universityId" column="university_id"/>
+        <result property="universityName" column="university_name"/>
         <result property="createdAt" column="created_at"/>
         <result property="createdBy" column="created_by"/>
         <result property="updatedAt" column="updated_at"/>
@@ -30,6 +31,7 @@
             status,
             owner_name,
             owner_email,
+            university_id,
             created_by,
             updated_by
         ) VALUES (
@@ -39,6 +41,7 @@
             #{status},
             #{ownerName},
             #{ownerEmail},
+            #{universityId},
             #{createdBy},
             #{updatedBy}
         )
@@ -169,20 +172,23 @@
     <!-- Find Applications by User with Pagination -->
     <select id="findByUserPaginated" resultMap="ApplicationResultMap">
         SELECT 
-            id,
-            application_name,
-            application_code,
-            description,
-            status,
-            owner_name,
-            owner_email,
-            created_at,
-            created_by,
-            updated_at,
-            updated_by
-        FROM RAP.application
-        WHERE owner_email = #{userEmail}
-        ORDER BY created_at DESC
+            a.id,
+            a.application_name,
+            a.application_code,
+            a.description,
+            a.status,
+            a.owner_name,
+            a.owner_email,
+            a.university_id,
+            u.university_name,
+            a.created_at,
+            a.created_by,
+            a.updated_at,
+            a.updated_by
+        FROM RAP.application a
+        LEFT JOIN RAP.university u ON a.university_id = u.id
+        WHERE a.owner_email = #{userEmail}
+        ORDER BY a.created_at DESC
         OFFSET #{offset} ROWS
         FETCH NEXT #{limit} ROWS ONLY
     </select>
@@ -197,21 +203,23 @@
     <!-- Find Applications by University with Pagination -->
     <select id="findByUniversityPaginated" resultMap="ApplicationResultMap">
         SELECT 
-            id,
-            application_name,
-            application_code,
-            description,
-            status,
-            owner_name,
-            owner_email,
-            university_id,
-            created_at,
-            created_by,
-            updated_at,
-            updated_by
-        FROM RAP.application
-        WHERE university_id = #{universityId}
-        ORDER BY created_at DESC
+            a.id,
+            a.application_name,
+            a.application_code,
+            a.description,
+            a.status,
+            a.owner_name,
+            a.owner_email,
+            a.university_id,
+            u.university_name,
+            a.created_at,
+            a.created_by,
+            a.updated_at,
+            a.updated_by
+        FROM RAP.application a
+        LEFT JOIN RAP.university u ON a.university_id = u.id
+        WHERE a.university_id = #{universityId}
+        ORDER BY a.created_at DESC
         OFFSET #{offset} ROWS
         FETCH NEXT #{limit} ROWS ONLY
     </select>

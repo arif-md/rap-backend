@@ -5,7 +5,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import x.y.z.backend.controller.dto.ApplicationSubmissionRequest;
 import x.y.z.backend.domain.model.Application;
+import x.y.z.backend.domain.model.University;
 import x.y.z.backend.repository.mapper.ApplicationMapper;
+import x.y.z.backend.repository.mapper.UniversityMapper;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -20,9 +22,11 @@ public class ApplicationSubmissionHandler {
     private static final Logger logger = LoggerFactory.getLogger(ApplicationSubmissionHandler.class);
 
     private final ApplicationMapper applicationMapper;
+    private final UniversityMapper universityMapper;
 
-    public ApplicationSubmissionHandler(ApplicationMapper applicationMapper) {
+    public ApplicationSubmissionHandler(ApplicationMapper applicationMapper, UniversityMapper universityMapper) {
         this.applicationMapper = applicationMapper;
+        this.universityMapper = universityMapper;
     }
 
     /**
@@ -47,6 +51,17 @@ public class ApplicationSubmissionHandler {
         application.setOwnerEmail(request.getEmail());
         application.setCreatedBy(username);
         application.setUpdatedBy(username);
+
+        // Look up university by name and set university_id
+        if (request.getUniversity() != null && !request.getUniversity().isEmpty()) {
+            University university = universityMapper.findByName(request.getUniversity());
+            if (university != null) {
+                application.setUniversityId(university.getId());
+                logger.info("Resolved university '{}' to ID: {}", request.getUniversity(), university.getId());
+            } else {
+                logger.warn("University not found by name: '{}'", request.getUniversity());
+            }
+        }
 
         // Insert into database using MyBatis
         int rowsInserted = applicationMapper.insert(application);

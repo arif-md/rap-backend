@@ -22,5 +22,7 @@ public interface UniversityMapper {
 
     University findByCode(@Param("universityCode") String universityCode);
 
+    University findByName(@Param("universityName") String universityName);
+
     long count();
 }

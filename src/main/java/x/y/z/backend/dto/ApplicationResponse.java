@@ -15,6 +15,8 @@ public class ApplicationResponse {
     private String status;
     private String ownerName;
     private String ownerEmail;
+    private Long universityId;
+    private String universityName;
     private LocalDateTime createdAt;
     private String createdBy;
     private LocalDateTime updatedAt;
@@ -25,7 +27,8 @@ public class ApplicationResponse {
     }
 
     public ApplicationResponse(Long id, String applicationName, String applicationCode, String description,
-                              String status, String ownerName, String ownerEmail, LocalDateTime createdAt,
+                              String status, String ownerName, String ownerEmail, Long universityId,
+                              String universityName, LocalDateTime createdAt,
                               String createdBy, LocalDateTime updatedAt, String updatedBy) {
         this.id = id;
         this.applicationName = applicationName;
@@ -34,6 +37,8 @@ public class ApplicationResponse {
         this.status = status;
         this.ownerName = ownerName;
         this.ownerEmail = ownerEmail;
+        this.universityId = universityId;
+        this.universityName = universityName;
         this.createdAt = createdAt;
         this.createdBy = createdBy;
         this.updatedAt = updatedAt;
@@ -95,6 +100,22 @@ public class ApplicationResponse {
 
     public void setOwnerEmail(String ownerEmail) {
         this.ownerEmail = ownerEmail;
+    }
+
+    public Long getUniversityId() {
+        return universityId;
+    }
+
+    public void setUniversityId(Long universityId) {
+        this.universityId = universityId;
+    }
+
+    public String getUniversityName() {
+        return universityName;
+    }
+
+    public void setUniversityName(String universityName) {
+        this.universityName = universityName;
     }
 
     public LocalDateTime getCreatedAt() {
