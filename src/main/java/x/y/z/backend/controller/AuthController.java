@@ -8,15 +8,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.web.bind.annotation.*;
 import x.y.z.backend.domain.model.User;
 import x.y.z.backend.security.JwtTokenUtil;
 import x.y.z.backend.service.JwtTokenService;
 import x.y.z.backend.service.UserService;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -25,8 +22,7 @@ import java.util.Map;
  * 
  * Endpoints:
  * - GET /auth/login - Initiates OIDC login (redirects to external provider)
- * - GET /auth/sso-login - Initiates Azure AD / Keycloak SSO login (redirects to internal provider)
- * - GET /auth/callback - Handles OIDC callback and generates JWT tokens
+ * - GET /auth/sso-login - Initiates Azure AD SSO login (redirects to internal provider)
  * - POST /auth/refresh - Refreshes access token using refresh token
  * - POST /auth/logout - Revokes tokens and logs out user
  * - GET /auth/user - Get current authenticated user info
@@ -109,60 +105,6 @@ public class AuthController {
         response.put("message", "Redirecting to internal auth provider...");
         response.put("authorizationUrl", "/oauth2/authorization/azure-ad");
         return ResponseEntity.ok(response);
-    }
-
-    /**
-     * GET /auth/callback
-     * 
-     * NOTE: This endpoint is no longer used. Spring Security's OAuth2 login
-     * handles the callback automatically at /login/oauth2/code/{registrationId}.
-     * After successful authentication, OAuth2AuthenticationSuccessHandler is invoked
-     * to create JWT tokens and redirect to the frontend.
-     * 
-     * This endpoint is kept for backwards compatibility but should not be called directly.
-     */
-    @GetMapping("/callback")
-    @Deprecated
-    public void handleOidcCallback(
-            @AuthenticationPrincipal OidcUser oidcUser,
-            HttpServletResponse response) throws IOException {
-
-        // This should not be reached - Spring Security handles OAuth2 callback automatically
-        if (oidcUser == null) {
-            response.sendRedirect(frontendUrl + "/sign-in?error=no_authentication");
-            return;
-        }
-
-        try {
-            // Create or update user from OIDC
-            User user = userService.getOrCreateUserFromOidc(oidcUser);
-
-            // Generate JWT access token and refresh token
-            JwtTokenService.TokenPair tokens = jwtTokenService.generateTokens(user.getId());
-
-            // Set access token as httpOnly cookie (15 min expiry)
-            Cookie accessTokenCookie = createCookie(
-                    "access_token",
-                    tokens.getAccessToken(),
-                    (int) (accessTokenExpirationMinutes * 60) // Convert to seconds
-            );
-            response.addCookie(accessTokenCookie);
-
-            // Set refresh token as httpOnly cookie (7 day expiry)
-            Cookie refreshTokenCookie = createCookie(
-                    "refresh_token",
-                    tokens.getRefreshToken(),
-                    (int) (refreshTokenExpirationDays * 24 * 60 * 60) // Convert to seconds
-            );
-            response.addCookie(refreshTokenCookie);
-
-            // Redirect browser to frontend dashboard
-            response.sendRedirect(frontendUrl + "/dashboard");
-
-        } catch (Exception e) {
-            // On error, redirect to frontend login with error parameter
-            response.sendRedirect(frontendUrl + "/sign-in?error=" + e.getMessage());
-        }
     }
 
     /**
@@ -371,8 +313,12 @@ public class AuthController {
         try {
             // Extract access token from cookie
             String accessToken = extractTokenFromCookie(request, "access_token");
+            logger.info("GET /auth/user - access_token cookie present: {}", accessToken != null);
 
             if (accessToken == null || !jwtTokenService.validateAccessToken(accessToken)) {
+                logger.warn("GET /auth/user - Not authenticated (token null: {}, valid: {})", 
+                    accessToken == null, 
+                    accessToken != null ? jwtTokenService.validateAccessToken(accessToken) : "N/A");
                 Map<String, Object> errorResponse = new HashMap<>();
                 errorResponse.put("success", false);
                 errorResponse.put("message", "Not authenticated");
@@ -528,10 +474,10 @@ public class AuthController {
     private Cookie createCookie(String name, String value, int maxAgeSeconds) {
         Cookie cookie = new Cookie(name, value);
         cookie.setHttpOnly(true);
-        cookie.setSecure(false); // Set to true in production with HTTPS
+        cookie.setSecure(frontendUrl != null && frontendUrl.startsWith("https://"));
         cookie.setPath("/");
         cookie.setMaxAge(maxAgeSeconds);
-        // cookie.setSameSite("Strict"); // Enable in production for CSRF protection
+        cookie.setAttribute("SameSite", "Lax");
         return cookie;
     }
 

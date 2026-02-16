@@ -37,7 +37,8 @@
     <!-- Update User -->
     <update id="update" parameterType="x.y.z.backend.domain.model.User">
         UPDATE RAP.USER_INFO
-        SET email = #{email},
+        SET oidc_subject = #{oidcSubject},
+            email = #{email},
             full_name = #{fullName},
             is_active = #{isActive},
             updated_at = GETUTCDATE()

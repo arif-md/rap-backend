@@ -14,7 +14,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
-import java.util.List;
 
 /**
  * SecurityConfig - Spring Security configuration for dual authentication:
@@ -79,12 +78,17 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers("/error").permitAll()
                 
-                // Auth endpoints (no JWT required, uses OIDC / Azure AD)
+                // Auth endpoints - these handle their own authentication internally
+                // (extract JWT from cookie, validate, return proper 401 JSON if invalid).
+                // They MUST be in permitAll() so Spring Security doesn't intercept
+                // unauthenticated requests with a 302 redirect to the OIDC login page,
+                // which would break frontend XHR calls (CORS block on redirect).
                 .requestMatchers("/auth/login").permitAll()
-                .requestMatchers("/auth/sso-login").permitAll()  // Azure AD SSO / Keycloak internal login
-                .requestMatchers("/auth/callback").permitAll()
+                .requestMatchers("/auth/sso-login").permitAll()
+                .requestMatchers("/auth/user").permitAll()     // Handles auth internally via JWT cookie
+                .requestMatchers("/auth/check").permitAll()    // Handles auth internally via JWT cookie
                 .requestMatchers("/auth/refresh").permitAll()
-                .requestMatchers("/auth/logout").permitAll()  // Allow logout without authentication
+                .requestMatchers("/auth/logout").permitAll()
                 
                 // OAuth2 authorization endpoints (Spring Security auto-registers these)
                 .requestMatchers("/oauth2/authorization/**").permitAll()

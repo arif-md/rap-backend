@@ -45,7 +45,7 @@ public class UserService {
             fullName = email; // Fallback to email if no name provided
         }
 
-        // Check if user already exists
+        // Check if user already exists by oidc_subject
         User existingUser = userHandler.findByOidcSubject(oidcSubject);
         
         if (existingUser != null) {
@@ -69,6 +69,23 @@ public class UserService {
             return existingUser;
         }
 
+        // User not found by oidc_subject — check by email.
+        // This handles the case where the same user logs in via a different OIDC provider
+        // (e.g., first via Keycloak, then via Login.gov). The oidc_subject differs per provider
+        // but the email is the same. Update the oidc_subject to the new provider's value.
+        if (email != null) {
+            User existingByEmail = userHandler.findByEmail(email);
+            if (existingByEmail != null) {
+                existingByEmail.setOidcSubject(oidcSubject);
+                if (fullName != null) {
+                    existingByEmail.setFullName(fullName);
+                }
+                userHandler.update(existingByEmail);
+                userHandler.updateLastLogin(existingByEmail.getId(), LocalDateTime.now());
+                return existingByEmail;
+            }
+        }
+
         // Create new user
         User newUser = new User(oidcSubject, email, fullName);
         newUser.setLastLoginAt(LocalDateTime.now());
@@ -81,17 +98,17 @@ public class UserService {
     }
 
     /**
-     * Assign default "USER" role to new user
+     * Assign default "EXTERNAL_USER" role to new external user
      * 
      * @param userId User's unique ID
      */
     private void assignDefaultRole(Long userId) {
-        Role userRole = userHandler.findRoleByName("USER");
+        Role userRole = userHandler.findRoleByName("EXTERNAL_USER");
         
         if (userRole != null) {
             userHandler.assignRole(userId, userRole.getId(), "SYSTEM");
         } else {
-            System.err.println("Warning: Default 'USER' role not found in database");
+            System.err.println("Warning: Default 'EXTERNAL_USER' role not found in database");
         }
     }
 

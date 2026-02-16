@@ -91,9 +91,28 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             OidcUser oidcUser = (OidcUser) authentication.getPrincipal();
             logger.debug("OIDC user subject: {}", oidcUser.getSubject());
 
-            // Create or update user from OIDC claims
-            User user = userService.getOrCreateUserFromOidc(oidcUser);
-            logger.info("User created/updated: {} (ID: {})", user.getEmail(), user.getId());
+            // Resolve user from database
+            User user;
+            if (isInternalProvider) {
+                // Internal users: already verified in AzureAdOidcUserService — just look up by email.
+                // No user creation or DB sync from Azure AD claims (requirement #4).
+                String email = oidcUser.getEmail();
+                if (email == null || email.isEmpty()) {
+                    email = oidcUser.getPreferredUsername();
+                }
+                user = userService.findByEmail(email);
+                if (user == null) {
+                    // Should not happen — AzureAdOidcUserService already verified user exists
+                    logger.error("Internal user not found after Azure AD auth: {}", email);
+                    response.sendRedirect(frontendUrl + "/login?error=user_not_found");
+                    return;
+                }
+                logger.info("Internal user verified from DB: {} (ID: {})", user.getEmail(), user.getId());
+            } else {
+                // External users: create if doesn't exist, update last login if exists
+                user = userService.getOrCreateUserFromOidc(oidcUser);
+                logger.info("External user created/updated: {} (ID: {})", user.getEmail(), user.getId());
+            }
 
             // Generate JWT tokens
             JwtTokenService.TokenPair tokens = jwtTokenService.generateTokens(user.getId());
@@ -108,7 +127,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                     (int) (accessTokenExpirationMinutes * 60)
             );
             response.addCookie(accessTokenCookie);
-            logger.debug("Access token cookie set");
+            logger.info("Access token cookie set (Secure={}, HttpOnly=true, SameSite=Lax)", accessTokenCookie.getSecure());
 
             // Set refresh token cookie (7 days)
             Cookie refreshTokenCookie = createCookie(
@@ -208,12 +227,14 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     }
 
     /**
-     * Creates an HttpOnly, secure cookie for JWT tokens.
+     * Creates an HttpOnly cookie for JWT tokens.
+     * Secure flag is derived from the frontend URL scheme (HTTPS → true, HTTP → false)
+     * to ensure cookies work in local HTTP development while remaining secure in production.
      */
     private Cookie createCookie(String name, String value, int maxAgeSeconds) {
         Cookie cookie = new Cookie(name, value);
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
+        cookie.setSecure(frontendUrl != null && frontendUrl.startsWith("https://"));
         cookie.setPath("/");
         cookie.setMaxAge(maxAgeSeconds);
         cookie.setAttribute("SameSite", "Lax");
