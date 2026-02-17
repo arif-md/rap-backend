@@ -14,6 +14,9 @@ import x.y.z.backend.security.JwtTokenUtil;
 import x.y.z.backend.service.JwtTokenService;
 import x.y.z.backend.service.UserService;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -272,6 +275,7 @@ public class AuthController {
             // Build provider-aware logout URL (RP-Initiated Logout)
             String oidcLogoutUrl = null;
             String postLogoutRedirectUri = frontendUrl + "/sign-in?logout=success";
+            String encodedPostLogoutRedirectUri = URLEncoder.encode(postLogoutRedirectUri, StandardCharsets.UTF_8);
 
             boolean isAzureAdProvider = "azure-ad".equals(authProvider);
 
@@ -280,7 +284,7 @@ public class AuthController {
                     // Configurable end-session endpoint (used when azure-ad points to Keycloak in local dev)
                     StringBuilder logoutUrlBuilder = new StringBuilder(azureAdEndSessionEndpoint);
                     logoutUrlBuilder.append("?client_id=").append(azureAdClientId);
-                    logoutUrlBuilder.append("&post_logout_redirect_uri=").append(postLogoutRedirectUri);
+                    logoutUrlBuilder.append("&post_logout_redirect_uri=").append(encodedPostLogoutRedirectUri);
                     oidcLogoutUrl = logoutUrlBuilder.toString();
                     logger.info("Azure AD logout URL built from configured end-session-endpoint: {}", azureAdEndSessionEndpoint);
                 } else {
@@ -288,7 +292,7 @@ public class AuthController {
                     String azureLogoutEndpoint = "https://login.microsoftonline.com/" 
                             + azureAdTenantId + "/oauth2/v2.0/logout";
                     StringBuilder logoutUrlBuilder = new StringBuilder(azureLogoutEndpoint);
-                    logoutUrlBuilder.append("?post_logout_redirect_uri=").append(postLogoutRedirectUri);
+                    logoutUrlBuilder.append("?post_logout_redirect_uri=").append(encodedPostLogoutRedirectUri);
                     if (!"not-configured".equals(azureAdClientId)) {
                         logoutUrlBuilder.append("&client_id=").append(azureAdClientId);
                     }
@@ -299,7 +303,7 @@ public class AuthController {
                 // OIDC provider (Keycloak) logout
                 StringBuilder logoutUrlBuilder = new StringBuilder(oidcEndSessionEndpoint);
                 logoutUrlBuilder.append("?client_id=").append(oidcClientId);
-                logoutUrlBuilder.append("&post_logout_redirect_uri=").append(postLogoutRedirectUri);
+                logoutUrlBuilder.append("&post_logout_redirect_uri=").append(encodedPostLogoutRedirectUri);
                 
                 // Add id_token_hint if configured and available
                 if (includeIdTokenHint && idToken != null) {
