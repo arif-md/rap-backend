@@ -81,11 +81,43 @@ public class AuthController {
      * Initiates OIDC login flow (handled by Spring Security OAuth2)
      * This endpoint is primarily for documentation - actual redirect is handled by SecurityConfig
      * 
-     * @return Redirect info or handled by Spring Security
+     * When called with ?error=true (OAuth2 failure redirect), surfaces the authentication
+     * error from the session so administrators can diagnose issues.
+     * 
+     * @return Redirect info or error details
      */
     @GetMapping("/login")
-    public ResponseEntity<Map<String, String>> login() {
+    public ResponseEntity<Map<String, String>> login(
+            @RequestParam(name = "error", required = false) String error,
+            HttpServletRequest request) {
         Map<String, String> response = new HashMap<>();
+
+        if ("true".equals(error)) {
+            // Read the authentication error stored by Spring Security's failure handler
+            var session = request.getSession(false);
+            String errorCode = "unknown";
+            String errorDescription = "Authentication failed";
+            if (session != null) {
+                Object exception = session.getAttribute("SPRING_SECURITY_LAST_EXCEPTION");
+                if (exception instanceof org.springframework.security.core.AuthenticationException authEx) {
+                    errorDescription = authEx.getMessage();
+                    if (authEx instanceof org.springframework.security.oauth2.core.OAuth2AuthenticationException oauth2Ex) {
+                        errorCode = oauth2Ex.getError().getErrorCode();
+                        if (oauth2Ex.getError().getDescription() != null) {
+                            errorDescription = oauth2Ex.getError().getDescription();
+                        }
+                    }
+                }
+                logger.warn("OAuth2 authentication failure — code: {}, description: {}", errorCode, errorDescription);
+            }
+            response.put("error", "true");
+            response.put("errorCode", errorCode);
+            response.put("errorDescription", errorDescription);
+            response.put("authorizationUrl", "/oauth2/authorization/oidc-provider");
+            response.put("ssoAuthorizationUrl", "/oauth2/authorization/azure-ad");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        }
+
         response.put("message", "Redirecting to OIDC provider...");
         response.put("authorizationUrl", "/oauth2/authorization/oidc-provider");
         return ResponseEntity.ok(response);

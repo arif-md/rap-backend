@@ -96,27 +96,48 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
     @Override
     public OAuth2AuthorizationRequest resolve(HttpServletRequest request) {
         OAuth2AuthorizationRequest authorizationRequest = defaultResolver.resolve(request);
-        return customizeAuthorizationRequest(authorizationRequest);
+        String registrationId = extractRegistrationId(request);
+        return customizeAuthorizationRequest(authorizationRequest, registrationId);
     }
 
     @Override
     public OAuth2AuthorizationRequest resolve(HttpServletRequest request, String clientRegistrationId) {
         OAuth2AuthorizationRequest authorizationRequest = defaultResolver.resolve(request, clientRegistrationId);
-        return customizeAuthorizationRequest(authorizationRequest);
+        return customizeAuthorizationRequest(authorizationRequest, clientRegistrationId);
+    }
+
+    /**
+     * Extract the OAuth2 client registration ID from the request URI.
+     * Default pattern: /oauth2/authorization/{registrationId}
+     */
+    private String extractRegistrationId(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String prefix = "/oauth2/authorization/";
+        if (uri != null && uri.startsWith(prefix) && uri.length() > prefix.length()) {
+            return uri.substring(prefix.length());
+        }
+        return null;
     }
 
     /**
      * Customize the authorization request by adding additional parameters.
      * Parameters are loaded from environment variables with prefix OIDC_ADDL_REQ_PARAM_
-     * If no additional parameters are configured, returns the original request unchanged.
+     * Only applied to the generic OIDC provider — Azure AD does not need Login.gov-specific
+     * parameters like acr_values and would ignore them, but sending them is unnecessary.
      */
-    private OAuth2AuthorizationRequest customizeAuthorizationRequest(OAuth2AuthorizationRequest authorizationRequest) {
+    private OAuth2AuthorizationRequest customizeAuthorizationRequest(
+            OAuth2AuthorizationRequest authorizationRequest, String registrationId) {
         if (authorizationRequest == null) {
             return null;
         }
 
         // If no additional parameters configured, return original request
         if (additionalParams.isEmpty()) {
+            return authorizationRequest;
+        }
+
+        // Only apply OIDC additional params to the external OIDC provider, not Azure AD
+        if (AzureAdOidcUserService.REGISTRATION_ID.equals(registrationId)) {
             return authorizationRequest;
         }
 
