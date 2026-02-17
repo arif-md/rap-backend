@@ -34,6 +34,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final OAuth2AuthenticationSuccessHandler oauth2SuccessHandler;
+    private final OAuth2AuthenticationFailureHandler oauth2FailureHandler;
     private final CustomOidcUserService customOidcUserService;
     private final AzureAdOidcUserService azureAdOidcUserService;
     private final CustomAuthorizationRequestResolver authorizationRequestResolver;
@@ -44,11 +45,13 @@ public class SecurityConfig {
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
             OAuth2AuthenticationSuccessHandler oauth2SuccessHandler,
+            OAuth2AuthenticationFailureHandler oauth2FailureHandler,
             CustomOidcUserService customOidcUserService,
             AzureAdOidcUserService azureAdOidcUserService,
             CustomAuthorizationRequestResolver authorizationRequestResolver) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.oauth2SuccessHandler = oauth2SuccessHandler;
+        this.oauth2FailureHandler = oauth2FailureHandler;
         this.customOidcUserService = customOidcUserService;
         this.azureAdOidcUserService = azureAdOidcUserService;
         this.authorizationRequestResolver = authorizationRequestResolver;
@@ -108,7 +111,7 @@ public class SecurityConfig {
                     .oidcUserService(new DelegatingOidcUserService(customOidcUserService, azureAdOidcUserService))
                 )
                 .successHandler(oauth2SuccessHandler)  // Use custom success handler
-                .failureUrl("/auth/login?error=true")
+                .failureHandler(oauth2FailureHandler)   // Redirects to frontend with error details
             )
             
             // Disable default logout - we handle it manually in AuthController
