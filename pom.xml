@@ -135,6 +135,21 @@
 			<version>1.17.2</version>
 		</dependency>
 		
+		<!-- Azure App Configuration (centralized config management) -->
+		<dependency>
+			<groupId>com.azure.spring</groupId>
+			<artifactId>spring-cloud-azure-starter-appconfiguration-config</artifactId>
+		</dependency>
+
+		<!-- Spring Cloud Bootstrap — enables BootstrapConfiguration in spring.factories.
+		     Required for Spring Cloud Azure App Configuration 5.x on Spring Boot 3.x
+		     because the library uses the bootstrap mechanism (not spring.config.import). -->
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-bootstrap</artifactId>
+			<version>4.3.0</version>
+		</dependency>
+
 		<!-- Flyway Database Migrations -->
 		<dependency>
 			<groupId>org.flywaydb</groupId>

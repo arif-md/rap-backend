@@ -3,6 +3,7 @@ package x.y.z.backend.security;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -38,9 +39,7 @@ public class SecurityConfig {
     private final CustomOidcUserService customOidcUserService;
     private final AzureAdOidcUserService azureAdOidcUserService;
     private final CustomAuthorizationRequestResolver authorizationRequestResolver;
-    
-    @Value("${cors.allowed-origins}")
-    private String[] allowedOrigins;
+    private final Environment environment;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
@@ -48,13 +47,15 @@ public class SecurityConfig {
             OAuth2AuthenticationFailureHandler oauth2FailureHandler,
             CustomOidcUserService customOidcUserService,
             AzureAdOidcUserService azureAdOidcUserService,
-            CustomAuthorizationRequestResolver authorizationRequestResolver) {
+            CustomAuthorizationRequestResolver authorizationRequestResolver,
+            Environment environment) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.oauth2SuccessHandler = oauth2SuccessHandler;
         this.oauth2FailureHandler = oauth2FailureHandler;
         this.customOidcUserService = customOidcUserService;
         this.azureAdOidcUserService = azureAdOidcUserService;
         this.authorizationRequestResolver = authorizationRequestResolver;
+        this.environment = environment;
     }
 
     @Bean
@@ -124,35 +125,54 @@ public class SecurityConfig {
     }
 
     /**
-     * CORS configuration - allows frontend to make requests to backend
+     * CORS configuration - allows frontend to make requests to backend.
+     * Reads cors.allowed-origins from the Environment on each request so that
+     * changes pushed via App Configuration refresh are picked up without restart.
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        
-        // Allowed origins (frontend URLs)
-        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins));
-        
-        // Allowed HTTP methods
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        
-        // Allowed headers
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        
-        // Allow credentials (cookies) only if not using wildcard origins
-        // Spring Boot doesn't allow allowCredentials=true with origins="*"
-        boolean isWildcardOrigin = Arrays.asList(allowedOrigins).contains("*");
-        configuration.setAllowCredentials(!isWildcardOrigin);
-        
-        // Expose headers to frontend
-        configuration.setExposedHeaders(Arrays.asList("Authorization", "Set-Cookie"));
-        
-        // Cache preflight response for 1 hour
-        configuration.setMaxAge(3600L);
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        
+        source.registerCorsConfiguration("/**", new CorsConfiguration() {
+            @Override
+            public CorsConfiguration applyPermitDefaultValues() {
+                return this;
+            }
+
+            private String[] resolveOrigins() {
+                String raw = environment.getProperty("cors.allowed-origins", "http://localhost:4200");
+                return raw.split(",");
+            }
+
+            @Override
+            public java.util.List<String> getAllowedOrigins() {
+                return Arrays.asList(resolveOrigins());
+            }
+
+            @Override
+            public java.util.List<String> getAllowedMethods() {
+                return Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS");
+            }
+
+            @Override
+            public java.util.List<String> getAllowedHeaders() {
+                return Arrays.asList("*");
+            }
+
+            @Override
+            public Boolean getAllowCredentials() {
+                return !Arrays.asList(resolveOrigins()).contains("*");
+            }
+
+            @Override
+            public java.util.List<String> getExposedHeaders() {
+                return Arrays.asList("Authorization", "Set-Cookie");
+            }
+
+            @Override
+            public Long getMaxAge() {
+                return 3600L;
+            }
+        });
         return source;
     }
 }
