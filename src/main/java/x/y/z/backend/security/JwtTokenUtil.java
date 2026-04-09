@@ -5,6 +5,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -21,6 +22,7 @@ import java.util.UUID;
  * Handles low-level JWT operations using JJWT library.
  */
 @Component
+@RefreshScope
 public class JwtTokenUtil {
 
     private final SecretKey secretKey;
