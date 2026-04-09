@@ -35,7 +35,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/auth")
 @RefreshScope
-@CrossOrigin(origins = {"http://localhost:4200", "http://localhost:3000"}, allowCredentials = "true")
 public class AuthController {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);

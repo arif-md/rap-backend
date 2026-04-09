@@ -26,7 +26,6 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/applications/submissions")
-@CrossOrigin(origins = "*") // Configure appropriately for production
 public class ApplicationSubmissionController {
 
     private static final Logger logger = LoggerFactory.getLogger(ApplicationSubmissionController.class);
