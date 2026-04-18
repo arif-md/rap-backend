@@ -1,6 +1,7 @@
 package x.y.z.backend.security;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.core.env.Environment;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
@@ -50,40 +51,34 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
     }
     
     /**
-     * Load additional parameters from environment variables with prefix OIDC_ADDL_REQ_PARAM_
+     * Load additional parameters using Spring Boot's Binder for relaxed binding.
      * Environment variable format: OIDC_ADDL_REQ_PARAM_<PARAM_NAME>=<value>
-     * Spring normalizes: OIDC_ADDL_REQ_PARAM_ACR_VALUES -> oidc.addl.req.param.acr.values
+     * App Config key format:       app:OIDC_ADDL_REQ_PARAM_<PARAM_NAME>=<value>
+     * Property file format:        oidc.addl.req.param.<param.name>=<value>
+     *
+     * The Binder applies relaxed binding across ALL property sources (env vars,
+     * App Config, properties files), so all three formats resolve identically.
      */
     private Map<String, String> loadAdditionalParameters() {
         Map<String, String> params = new HashMap<>();
+        Binder binder = Binder.get(environment);
         
         System.out.println("=== DEBUG: Checking OIDC Additional Parameters ===");
         
-        // Debug: Check if environment variables exist directly
-        System.out.println("Direct env check - OIDC_ADDL_REQ_PARAM_ACR_VALUES: " + 
-            System.getenv("OIDC_ADDL_REQ_PARAM_ACR_VALUES"));
-        System.out.println("Direct env check - OIDC_ADDL_REQ_PARAM_PROMPT: " + 
-            System.getenv("OIDC_ADDL_REQ_PARAM_PROMPT"));
-        System.out.println("Direct env check - OIDC_ADDL_REQ_PARAM_RESPONSE_TYPE: " + 
-            System.getenv("OIDC_ADDL_REQ_PARAM_RESPONSE_TYPE"));
-        
-        // Try common parameter names that might be configured
         String[] commonParams = {
             "acr_values", "prompt", "ui_locales", "login_hint", "display", 
             "max_age", "claims", "id_token_hint", "nonce", "response_type"
         };
         
         for (String paramName : commonParams) {
-            // Spring Boot normalizes OIDC_ADDL_REQ_PARAM_ACR_VALUES to oidc.addl.req.param.acr.values
-            // So we need to convert acr_values -> acr.values for property lookup
             String normalizedParamName = paramName.replace('_', '.');
             String propertyKey = PARAM_PREFIX + normalizedParamName;
-            String value = environment.getProperty(propertyKey);
+            String value = binder.bind(propertyKey, String.class).orElse(null);
             
             System.out.println("Checking property: " + propertyKey + " = " + value);
             
             if (value != null && !value.trim().isEmpty()) {
-                params.put(paramName, value);  // Use original name (acr_values) for OAuth2 request
+                params.put(paramName, value);
                 System.out.println("✓ Loaded OIDC param: " + paramName + " = " + value);
             }
         }
