@@ -1,7 +1,6 @@
 package x.y.z.backend.security;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.core.env.Environment;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
@@ -33,7 +32,7 @@ import java.util.Map;
 @Component
 public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {
 
-    private static final String PARAM_PREFIX = "oidc.addl.req.param.";
+    private static final String ENV_VAR_PREFIX = "OIDC_ADDL_REQ_PARAM_";
     
     private final OAuth2AuthorizationRequestResolver defaultResolver;
     private final Environment environment;
@@ -51,31 +50,34 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
     }
     
     /**
-     * Load additional parameters using Spring Boot's Binder for relaxed binding.
-     * Environment variable format: OIDC_ADDL_REQ_PARAM_<PARAM_NAME>=<value>
-     * App Config key format:       app:OIDC_ADDL_REQ_PARAM_<PARAM_NAME>=<value>
-     * Property file format:        oidc.addl.req.param.<param.name>=<value>
-     *
-     * The Binder applies relaxed binding across ALL property sources (env vars,
-     * App Config, properties files), so all three formats resolve identically.
+     * Load additional parameters from environment properties.
+     * 
+     * Keys are looked up in UPPER_CASE with underscore format to match both:
+     * - System environment variables: OIDC_ADDL_REQ_PARAM_ACR_VALUES
+     * - Azure App Configuration keys: app:OIDC_ADDL_REQ_PARAM_ACR_VALUES (prefix stripped)
+     * 
+     * Spring's environment.getProperty() performs exact key lookup on non-system
+     * PropertySources (like BootstrapPropertySource from App Config), so we must
+     * use the exact key format stored in the source. UPPER_CASE is the uniform
+     * convention across env vars and App Config.
      */
     private Map<String, String> loadAdditionalParameters() {
         Map<String, String> params = new HashMap<>();
-        Binder binder = Binder.get(environment);
         
         System.out.println("=== DEBUG: Checking OIDC Additional Parameters ===");
         
+        // Parameter names as they appear in the OAuth2 authorization request
         String[] commonParams = {
             "acr_values", "prompt", "ui_locales", "login_hint", "display", 
             "max_age", "claims", "id_token_hint", "nonce", "response_type"
         };
         
         for (String paramName : commonParams) {
-            String normalizedParamName = paramName.replace('_', '.');
-            String propertyKey = PARAM_PREFIX + normalizedParamName;
-            String value = binder.bind(propertyKey, String.class).orElse(null);
+            // Look up by exact UPPER_CASE env var key (works for both env vars and App Config)
+            String envVarKey = ENV_VAR_PREFIX + paramName.toUpperCase();
+            String value = environment.getProperty(envVarKey);
             
-            System.out.println("Checking property: " + propertyKey + " = " + value);
+            System.out.println("Checking property: " + envVarKey + " = " + value);
             
             if (value != null && !value.trim().isEmpty()) {
                 params.put(paramName, value);
