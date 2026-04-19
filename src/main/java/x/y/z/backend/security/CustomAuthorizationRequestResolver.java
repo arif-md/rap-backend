@@ -33,6 +33,7 @@ import java.util.Map;
 public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {
 
     private static final String ENV_VAR_PREFIX = "OIDC_ADDL_REQ_PARAM_";
+    private static final String DOT_PREFIX = "oidc.addl.req.param.";
     
     private final OAuth2AuthorizationRequestResolver defaultResolver;
     private final Environment environment;
@@ -52,14 +53,13 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
     /**
      * Load additional parameters from environment properties.
      * 
-     * Keys are looked up in UPPER_CASE with underscore format to match both:
-     * - System environment variables: OIDC_ADDL_REQ_PARAM_ACR_VALUES
-     * - Azure App Configuration keys: app:OIDC_ADDL_REQ_PARAM_ACR_VALUES (prefix stripped)
+     * Tries two key formats to support all property sources:
+     * 1. Dot-notation: oidc.addl.req.param.acr.values (Bicep-managed App Config keys)
+     * 2. UPPER_CASE:   OIDC_ADDL_REQ_PARAM_ACR_VALUES (env vars, manually-set App Config keys)
      * 
-     * Spring's environment.getProperty() performs exact key lookup on non-system
-     * PropertySources (like BootstrapPropertySource from App Config), so we must
-     * use the exact key format stored in the source. UPPER_CASE is the uniform
-     * convention across env vars and App Config.
+     * Spring's environment.getProperty() applies relaxed binding for
+     * SystemEnvironmentPropertySource (env vars) but NOT for BootstrapPropertySource
+     * (App Config). We try dot-notation first (canonical), then UPPER_CASE as fallback.
      */
     private Map<String, String> loadAdditionalParameters() {
         Map<String, String> params = new HashMap<>();
@@ -73,11 +73,17 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
         };
         
         for (String paramName : commonParams) {
-            // Look up by exact UPPER_CASE env var key (works for both env vars and App Config)
-            String envVarKey = ENV_VAR_PREFIX + paramName.toUpperCase();
-            String value = environment.getProperty(envVarKey);
+            // Try dot-notation first (matches Bicep-generated App Config keys)
+            String dotKey = DOT_PREFIX + paramName.replace('_', '.');
+            String value = environment.getProperty(dotKey);
             
-            System.out.println("Checking property: " + envVarKey + " = " + value);
+            // Fallback to UPPER_CASE (matches env vars and manually-set App Config keys)
+            if (value == null) {
+                String envVarKey = ENV_VAR_PREFIX + paramName.toUpperCase();
+                value = environment.getProperty(envVarKey);
+            }
+            
+            System.out.println("Checking param: " + paramName + " = " + value);
             
             if (value != null && !value.trim().isEmpty()) {
                 params.put(paramName, value);
