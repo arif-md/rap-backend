@@ -18,25 +18,26 @@ import java.util.Map;
  * This resolver wraps the default Spring Security resolver and enhances it
  * with custom parameters before sending the authorization request.
  * 
- * Configuration via Environment Variables:
- * - Set environment variables with prefix: OIDC_ADDL_REQ_PARAM_
- * - Example: OIDC_ADDL_REQ_PARAM_ACR_VALUES=http://idmanagement.dev/ns/assurance/ial/2
- * - The parameter name will be: acr_values (converted to lowercase with underscores)
- * - If no OIDC_ADDL_REQ_PARAM_* variables are set, default behavior is used (no extra params)
+ * Configuration via Azure App Configuration (dot-notation keys):
+ *   oidc.addl.req.param.acr.values  → acr_values
+ *   oidc.addl.req.param.prompt      → prompt
+ *   oidc.addl.req.param.response.type → response_type
  * 
- * Example Environment Variables:
- * - OIDC_ADDL_REQ_PARAM_ACR_VALUES=http://idmanagement.dev/ns/assurance/ial/2
- * - OIDC_ADDL_REQ_PARAM_PROMPT=login
- * - OIDC_ADDL_REQ_PARAM_UI_LOCALES=en
+ * Bicep manages these keys in App Config with the 'app:' prefix (e.g.,
+ * app:oidc.addl.req.param.acr.values). The Spring Cloud Azure bootstrap
+ * strips the prefix, so the resolver looks up the key without it.
+ * 
+ * Relaxed binding does NOT apply to BootstrapPropertySource lookups, so
+ * keys must match exactly in dot-notation.
+ * 
+ * @see docs/AZURE-PROPERTY-RESOLUTION.md for the full property resolution model
  */
 @Component
 public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {
 
-    private static final String ENV_VAR_PREFIX = "OIDC_ADDL_REQ_PARAM_";
     private static final String DOT_PREFIX = "oidc.addl.req.param.";
     
     private final OAuth2AuthorizationRequestResolver defaultResolver;
-    private final Environment environment;
     private final Map<String, String> additionalParams;
 
     public CustomAuthorizationRequestResolver(
@@ -46,22 +47,20 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
             clientRegistrationRepository, 
             "/oauth2/authorization"
         );
-        this.environment = environment;
-        this.additionalParams = loadAdditionalParameters();
+        this.additionalParams = loadAdditionalParameters(environment);
     }
     
     /**
      * Load additional parameters from environment properties.
      * 
-     * Tries two key formats to support all property sources:
-     * 1. Dot-notation: oidc.addl.req.param.acr.values (Bicep-managed App Config keys)
-     * 2. UPPER_CASE:   OIDC_ADDL_REQ_PARAM_ACR_VALUES (env vars, manually-set App Config keys)
+     * Keys are in dot-notation matching Bicep-managed App Config keys:
+     *   oidc.addl.req.param.acr.values → acr_values
+     *   oidc.addl.req.param.prompt     → prompt
      * 
-     * Spring's environment.getProperty() applies relaxed binding for
-     * SystemEnvironmentPropertySource (env vars) but NOT for BootstrapPropertySource
-     * (App Config). We try dot-notation first (canonical), then UPPER_CASE as fallback.
+     * Spring's relaxed binding does NOT apply to BootstrapPropertySource
+     * (App Config), so keys must match exactly.
      */
-    private Map<String, String> loadAdditionalParameters() {
+    private Map<String, String> loadAdditionalParameters(Environment environment) {
         Map<String, String> params = new HashMap<>();
         
         System.out.println("=== DEBUG: Checking OIDC Additional Parameters ===");
@@ -73,17 +72,11 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
         };
         
         for (String paramName : commonParams) {
-            // Try dot-notation first (matches Bicep-generated App Config keys)
+            // Dot-notation matches Bicep-generated App Config keys
             String dotKey = DOT_PREFIX + paramName.replace('_', '.');
             String value = environment.getProperty(dotKey);
             
-            // Fallback to UPPER_CASE (matches env vars and manually-set App Config keys)
-            if (value == null) {
-                String envVarKey = ENV_VAR_PREFIX + paramName.toUpperCase();
-                value = environment.getProperty(envVarKey);
-            }
-            
-            System.out.println("Checking param: " + paramName + " = " + value);
+            System.out.println("Checking param: " + paramName + " (key: " + dotKey + ") = " + value);
             
             if (value != null && !value.trim().isEmpty()) {
                 params.put(paramName, value);
@@ -124,7 +117,7 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
 
     /**
      * Customize the authorization request by adding additional parameters.
-     * Parameters are loaded from environment variables with prefix OIDC_ADDL_REQ_PARAM_
+     * Parameters are loaded from App Config (dot-notation keys under oidc.addl.req.param.*).
      * Only applied to the generic OIDC provider — Azure AD does not need Login.gov-specific
      * parameters like acr_values and would ignore them, but sending them is unnecessary.
      */
