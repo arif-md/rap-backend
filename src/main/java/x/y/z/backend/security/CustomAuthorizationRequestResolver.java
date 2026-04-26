@@ -36,56 +36,43 @@ import java.util.Map;
 public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {
 
     private static final String DOT_PREFIX = "oidc.addl.req.param.";
-    
+
+    // Parameter names as they appear in the OAuth2 authorization request
+    private static final String[] KNOWN_PARAMS = {
+        "acr_values", "prompt", "ui_locales", "login_hint", "display",
+        "max_age", "claims", "id_token_hint", "nonce", "response_type"
+    };
+
     private final OAuth2AuthorizationRequestResolver defaultResolver;
-    private final Map<String, String> additionalParams;
+
+    // Environment is kept as a field and queried on every request so that
+    // @RefreshScope sentinel-driven refreshes are picked up without a restart.
+    private final Environment environment;
 
     public CustomAuthorizationRequestResolver(
             ClientRegistrationRepository clientRegistrationRepository,
             Environment environment) {
         this.defaultResolver = new DefaultOAuth2AuthorizationRequestResolver(
-            clientRegistrationRepository, 
+            clientRegistrationRepository,
             "/oauth2/authorization"
         );
-        this.additionalParams = loadAdditionalParameters(environment);
+        this.environment = environment;
     }
-    
+
     /**
-     * Load additional parameters from environment properties.
-     * 
-     * Keys are in dot-notation matching Bicep-managed App Config keys:
-     *   oidc.addl.req.param.acr.values → acr_values
-     *   oidc.addl.req.param.prompt     → prompt
-     * 
-     * Spring's relaxed binding does NOT apply to BootstrapPropertySource
-     * (App Config), so keys must match exactly.
+     * Read additional parameters from the environment on each call.
+     * This is intentionally not cached so that sentinel-triggered App Config
+     * refreshes are reflected immediately without a container restart.
      */
-    private Map<String, String> loadAdditionalParameters(Environment environment) {
+    private Map<String, String> loadAdditionalParameters() {
         Map<String, String> params = new HashMap<>();
-        
-        System.out.println("=== DEBUG: Checking OIDC Additional Parameters ===");
-        
-        // Parameter names as they appear in the OAuth2 authorization request
-        String[] commonParams = {
-            "acr_values", "prompt", "ui_locales", "login_hint", "display", 
-            "max_age", "claims", "id_token_hint", "nonce", "response_type"
-        };
-        
-        for (String paramName : commonParams) {
-            // Dot-notation matches Bicep-generated App Config keys
+        for (String paramName : KNOWN_PARAMS) {
             String dotKey = DOT_PREFIX + paramName.replace('_', '.');
             String value = environment.getProperty(dotKey);
-            
-            System.out.println("Checking param: " + paramName + " (key: " + dotKey + ") = " + value);
-            
             if (value != null && !value.trim().isEmpty()) {
                 params.put(paramName, value);
-                System.out.println("✓ Loaded OIDC param: " + paramName + " = " + value);
             }
         }
-        
-        System.out.println("Total OIDC additional params loaded: " + params.size());
-        System.out.println("=== END DEBUG ===");
         return params;
     }
 
@@ -127,13 +114,15 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
             return null;
         }
 
-        // If no additional parameters configured, return original request
-        if (additionalParams.isEmpty()) {
+        // Only apply OIDC additional params to the external OIDC provider, not Azure AD
+        if (AzureAdOidcUserService.REGISTRATION_ID.equals(registrationId)) {
             return authorizationRequest;
         }
 
-        // Only apply OIDC additional params to the external OIDC provider, not Azure AD
-        if (AzureAdOidcUserService.REGISTRATION_ID.equals(registrationId)) {
+        Map<String, String> additionalParams = loadAdditionalParameters();
+
+        // If no additional parameters configured, return original request
+        if (additionalParams.isEmpty()) {
             return authorizationRequest;
         }
 
@@ -142,7 +131,7 @@ public class CustomAuthorizationRequestResolver implements OAuth2AuthorizationRe
 
         // Add configured additional parameters
         additionalParameters.putAll(additionalParams);
-        
+
         // Build and return the customized authorization request
         return OAuth2AuthorizationRequest.from(authorizationRequest)
             .additionalParameters(additionalParameters)
