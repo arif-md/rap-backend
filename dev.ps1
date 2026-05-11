@@ -19,6 +19,7 @@ function Help {
     Write-Host "  DB-Init             Initialize database" -ForegroundColor White
     Write-Host "  DB-Connect          Connect to database" -ForegroundColor White
     Write-Host "  DB-Reset            Reset database (DANGEROUS)" -ForegroundColor White
+    Write-Host "  Flyway-Repair       Fix 'checksum mismatch' errors after editing a migration file" -ForegroundColor White
     Write-Host "  Clean               Clean up containers and networks" -ForegroundColor White
     Write-Host "  Clean-All           Remove all containers, networks, and volumes" -ForegroundColor White
     Write-Host "" 
@@ -282,6 +283,38 @@ function DB-Reset {
         Write-Host "[OK] Database reset complete. Run './dev.ps1 DB-Init' to initialize" -ForegroundColor Green
     } else {
         Write-Host "[ERROR] Database reset cancelled" -ForegroundColor Yellow
+    }
+}
+
+# Repair Flyway checksum mismatches in the local database.
+# Use this after editing an existing migration file (which you should avoid —
+# prefer creating a new V<n+1> file instead). This syncs the stored checksums
+# in flyway_schema_history to match the files currently on disk.
+function Flyway-Repair {
+    Write-Host "Running Flyway repair on local database..." -ForegroundColor Cyan
+    Write-Host "This fixes 'Migration checksum mismatch' errors caused by editing applied migration files." -ForegroundColor Yellow
+
+    # Build temporary container that runs Flyway repair against the local DB
+    $flywayCmd = @(
+        "run", "--rm",
+        "--network", "backend_app-network",
+        "-v", "${PWD}/src/main/resources/db/migration:/flyway/sql",
+        "flyway/flyway:latest",
+        "-url=jdbc:sqlserver://database:1433;databaseName=raptordb;encrypt=true;trustServerCertificate=true",
+        "-user=sa",
+        "-password=YourStrong@Passw0rd",
+        "-schemas=RAP",
+        "-defaultSchema=RAP",
+        "-baselineOnMigrate=true",
+        "repair"
+    )
+
+    docker @flywayCmd
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "[OK] Flyway repair complete. You can now restart the backend." -ForegroundColor Green
+        Write-Host "  Restart with: .\dev.ps1 Dev-Restart" -ForegroundColor White
+    } else {
+        Write-Host "[ERROR] Flyway repair failed. Check that the database container is running." -ForegroundColor Red
     }
 }
 
