@@ -259,4 +259,81 @@ SELECT * FROM processinstanceinfo;        # May fail (default schema not JBPM)
 | Backend | MyBatis | RAP | Flyway `default-schema` + User default schema |
 | Processes | Hibernate/JPA | JBPM | Hibernate `default_schema` property |
 
+---
+
+## Flyway Migration Rules
+
+### The Golden Rule: Never Edit an Applied Migration
+
+Once a migration file (e.g. `V4__Create_auth_tables.sql`) has been applied to **any** environment — including your local Docker database — the file is **frozen**. Editing it changes its checksum, causing this error on the next startup:
+
+```
+Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 4
+-> Applied to database : 1566870783
+-> Resolved locally    : 1943800922
+```
+
+**Instead, always create a new migration:**
+
+```
+src/main/resources/db/migration/
+  V4__Create_auth_tables.sql       ← FROZEN. Never touch.
+  V5__Create_task_table.sql        ← FROZEN.
+  V10__Add_missing_column.sql      ← New migration for your schema change.
+```
+
+### Local Docker: Validation is Relaxed by Design
+
+`application-docker.properties` sets:
+```properties
+spring.flyway.validate-on-migrate=false
+```
+
+This prevents local container crashes during active development when a migration file may be edited during iteration. **This only applies to the `docker` profile** — all Azure profiles (`dev`, `test`, `prod`) inherit `validate-on-migrate=true` from `application.properties` and will catch mismatches before deployment.
+
+### Fixing a Checksum Mismatch on Your Local DB
+
+If you have already edited an applied migration and the backend container won't start, you have two options:
+
+**Option 1 — Repair (preserves existing data):**
+```powershell
+cd backend
+.\dev.ps1 Flyway-Repair
+.\dev.ps1 Dev-Restart
+```
+This syncs the stored checksums in `flyway_schema_history` to match the files currently on disk. Use this when the schema change is backward-compatible and data should be kept.
+
+**Option 2 — Reset (destroys all local data):**
+```powershell
+cd backend
+.\dev.ps1 DB-Reset
+```
+Use this when you want a clean slate. All data is lost.
+
+**Option 3 — Manual SQL (targeted fix):**
+```powershell
+# Find the new checksum from the Flyway error message, then:
+docker exec rap-database /opt/mssql-tools18/bin/sqlcmd `
+  -S localhost -U sa -P "YourStrong@Passw0rd" -C `
+  -Q "USE raptordb; UPDATE RAP.flyway_schema_history SET checksum = <new_checksum> WHERE version = '<version>';"
+docker restart rap-backend
+```
+
+### Profile Isolation: Local vs Azure
+
+The codebase uses Spring profiles to ensure Azure-specific services are never required locally:
+
+| Setting | `application.properties` (base) | `application-docker.properties` | `application-dev.properties` |
+|---------|----------------------------------|----------------------------------|-------------------------------|
+| App Config | `enabled=false` | (inherits false) | `enabled=true` |
+| Key Vault | disabled | (inherits disabled) | enabled via bootstrap |
+| Flyway validation | `validate-on-migrate=true` | `validate-on-migrate=false` | (inherits true) |
+| SQL auth | SQL Server container | SQL Server container | Managed Identity |
+
+**Rule:** When adding a new Azure service integration, always:
+1. Default it to `false`/disabled in `application.properties`
+2. Enable it only in the Azure profile properties (`application-dev.properties`, `bootstrap-dev.properties`)
+3. Provide local defaults for any required env vars in `docker-compose.yml` using `${VAR:-default}`
+
 Both services share the same database (`rapdb`) but maintain isolation through schema separation. This provides the benefits of a shared database (connection pooling, transactions) with the logical separation of independent databases.
