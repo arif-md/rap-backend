@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 public class BackendApplication {
 
 	public static void main(String[] args) {
-		System.out.println("Starting Raptor Backend Application...15");
+		System.out.println("Starting Raptor Backend Application...16");
 		SpringApplication.run(BackendApplication.class, args);
 	}
 
