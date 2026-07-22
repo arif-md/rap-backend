@@ -39,28 +39,6 @@ ELSE
     PRINT 'Table RAP.university already exists';
 GO
 
--- Seed universities
-IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'HARVARD')
-    INSERT INTO RAP.university (university_name, university_code) VALUES ('Harvard University', 'HARVARD');
-IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'STANFORD')
-    INSERT INTO RAP.university (university_name, university_code) VALUES ('Stanford University', 'STANFORD');
-IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'MIT')
-    INSERT INTO RAP.university (university_name, university_code) VALUES ('MIT', 'MIT');
-IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'OXFORD')
-    INSERT INTO RAP.university (university_name, university_code) VALUES ('Oxford University', 'OXFORD');
-IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'CAMBRIDGE')
-    INSERT INTO RAP.university (university_name, university_code) VALUES ('Cambridge University', 'CAMBRIDGE');
-IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'YALE')
-    INSERT INTO RAP.university (university_name, university_code) VALUES ('Yale University', 'YALE');
-IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'PRINCETON')
-    INSERT INTO RAP.university (university_name, university_code) VALUES ('Princeton University', 'PRINCETON');
-IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'COLUMBIA')
-    INSERT INTO RAP.university (university_name, university_code) VALUES ('Columbia University', 'COLUMBIA');
-IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'UCHICAGO')
-    INSERT INTO RAP.university (university_name, university_code) VALUES ('University of Chicago', 'UCHICAGO');
-IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'IMPERIAL')
-    INSERT INTO RAP.university (university_name, university_code) VALUES ('Imperial College London', 'IMPERIAL');
-
 -- ===================================================================
 -- 2.2 USER_INFO TABLE
 -- ===================================================================
@@ -131,11 +109,12 @@ BEGIN
         CONSTRAINT FK_user_roles_role FOREIGN KEY (role_id) 
             REFERENCES RAP.ROLE_REF(id) ON DELETE CASCADE,
         CONSTRAINT FK_user_roles_university_id FOREIGN KEY (university_id) 
-            REFERENCES RAP.university(university_id),
-        CONSTRAINT UQ_user_role UNIQUE (user_id, role_id),
+            REFERENCES RAP.university(id),
+        CONSTRAINT UQ_user_role UNIQUE (user_id, role_id, university_id),
         
         INDEX IX_user_roles_user_id (user_id),
-        INDEX IX_user_roles_role_id (role_id)
+        INDEX IX_user_roles_role_id (role_id),
+        INDEX IX_user_roles_university_id (university_id)
     );
     PRINT 'Created table: RAP.USER_ROLE';
 END
@@ -211,58 +190,6 @@ END
 ELSE
     PRINT 'Table RAP.revoked_tokens already exists (created by bootstrap)';
 GO
-
--- ===================================================================
--- SEED DATA - Default Roles (idempotent)
--- ===================================================================
-IF NOT EXISTS (SELECT 1 FROM RAP.ROLE_REF WHERE role_name = 'USER')
-    INSERT INTO RAP.ROLE_REF (role_name, description) VALUES ('USER', 'Internal user with read access');
-IF NOT EXISTS (SELECT 1 FROM RAP.ROLE_REF WHERE role_name = 'EXTERNAL_USER')
-    INSERT INTO RAP.ROLE_REF (role_name, description) VALUES ('EXTERNAL_USER', 'External user with read access');
-IF NOT EXISTS (SELECT 1 FROM RAP.ROLE_REF WHERE role_name = 'MANAGER')
-    INSERT INTO RAP.ROLE_REF (role_name, description) VALUES ('MANAGER', 'Manager with read/write access to managed entities');
-IF NOT EXISTS (SELECT 1 FROM RAP.ROLE_REF WHERE role_name = 'ADMIN')
-    INSERT INTO RAP.ROLE_REF (role_name, description) VALUES ('ADMIN', 'System administrator with full access');
-IF NOT EXISTS (SELECT 1 FROM RAP.ROLE_REF WHERE role_name = 'INTERNAL_USER')
-    INSERT INTO RAP.ROLE_REF (role_name, description) VALUES ('INTERNAL_USER', 'Internal user with access to internal dashboard and university-scoped data');
-PRINT 'Seeded RAP.ROLE_REF';
-GO
-
--- JBPM roles (matches V12 seed data)
-IF NOT EXISTS (SELECT 1 FROM JBPM.ROLE_REF WHERE role_code = 'kie-server')
-    INSERT INTO JBPM.ROLE_REF (role_code) VALUES ('kie-server');
-IF NOT EXISTS (SELECT 1 FROM JBPM.ROLE_REF WHERE role_code = 'admin')
-    INSERT INTO JBPM.ROLE_REF (role_code) VALUES ('admin');
-IF NOT EXISTS (SELECT 1 FROM JBPM.ROLE_REF WHERE role_code = 'user')
-    INSERT INTO JBPM.ROLE_REF (role_code) VALUES ('user');
-PRINT 'Seeded JBPM.ROLE_REF';
-GO
-
--- Default JBPM service user (kieserver) - matches V12 seed data
-IF NOT EXISTS (SELECT 1 FROM JBPM.USER_INFO WHERE email = 'kieserver')
-BEGIN
-    INSERT INTO JBPM.USER_INFO (email, pwd, lang) VALUES ('kieserver', 'kieserver123', 'en-UK');
-
-    DECLARE @kieUserId INT = SCOPE_IDENTITY();
-
-    INSERT INTO JBPM.USER_ROLE (user_id, role_id)
-    SELECT @kieUserId, r.id FROM JBPM.ROLE_REF r WHERE r.role_code = 'kie-server';
-
-    INSERT INTO JBPM.USER_ROLE (user_id, role_id)
-    SELECT @kieUserId, r.id FROM JBPM.ROLE_REF r WHERE r.role_code = 'admin';
-
-    INSERT INTO JBPM.USER_ROLE (user_id, role_id)
-    SELECT @kieUserId, r.id FROM JBPM.ROLE_REF r WHERE r.role_code = 'user';
-
-    INSERT INTO JBPM.USER_GROUP (user_id, group_id, role_id)
-    SELECT @kieUserId, 'Administrators', r.id FROM JBPM.ROLE_REF r WHERE r.role_code = 'admin';
-
-    PRINT 'Seeded JBPM kieserver user with roles and groups';
-END
-ELSE
-    PRINT 'JBPM kieserver user already exists';
-GO
-
 
 -- ===================================================================
 -- 8. CLEANUP JOBS (Comments - for future scheduled tasks)

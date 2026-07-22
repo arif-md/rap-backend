@@ -18,7 +18,7 @@ CREATE TABLE RAP.application (
     updated_at DATETIME2 NOT NULL DEFAULT GETDATE(),
     updated_by NVARCHAR(100),
     CONSTRAINT FK_application_university_id FOREIGN KEY (university_id) 
-        REFERENCES RAP.university(university_id),
+        REFERENCES RAP.university(id),
     
     -- Indexes for common query patterns
     INDEX idx_application_code (application_code),

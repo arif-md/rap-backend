@@ -14,7 +14,7 @@ CREATE TABLE RAP.permit (
     updated_at DATETIME2 NOT NULL DEFAULT GETDATE(),
     updated_by NVARCHAR(255) NOT NULL,
     CONSTRAINT FK_permit_university_id FOREIGN KEY (university_id) 
-        REFERENCES RAP.university(university_id),
+        REFERENCES RAP.university(id),
     INDEX idx_permit_university_id (university_id)
 );
 
