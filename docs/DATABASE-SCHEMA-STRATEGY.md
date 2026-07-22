@@ -265,7 +265,7 @@ SELECT * FROM processinstanceinfo;        # May fail (default schema not JBPM)
 
 ### The Golden Rule: Never Edit an Applied Migration
 
-Once a migration file (e.g. `V4__Create_auth_tables.sql`) has been applied to **any** environment — including your local Docker database — the file is **frozen**. Editing it changes its checksum, causing this error on the next startup:
+Once a migration file (e.g. `V2__Create_auth_tables.sql`) has been applied to **any** environment — including your local Docker database — the file is **frozen**. Editing it changes its checksum, causing this error on the next startup:
 
 ```
 Validate failed: Migrations have failed validation
@@ -278,7 +278,7 @@ Migration checksum mismatch for migration version 4
 
 ```
 src/main/resources/db/migration/
-  V4__Create_auth_tables.sql       ← FROZEN. Never touch.
+  V2__Create_auth_tables.sql       ← FROZEN. Never touch.
   V5__Create_task_table.sql        ← FROZEN.
   V10__Add_missing_column.sql      ← New migration for your schema change.
 ```

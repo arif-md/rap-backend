@@ -1,3 +1,34 @@
+-- ===================================================================
+-- 7. SEED DATA - Test User (for local development only, idempotent)
+-- ===================================================================
+-- Create a test user for local development
+-- In production, users are created automatically on first OIDC login
+IF NOT EXISTS (SELECT 1 FROM RAP.USER_INFO WHERE oidc_subject = 'system|system-user')
+BEGIN
+    DECLARE @testUserId BIGINT;
+    DECLARE @userRoleId BIGINT;
+
+    -- Insert pre-defined users (IDENTITY will auto-generate ID)
+    INSERT INTO RAP.USER_INFO (oidc_subject, email, full_name, is_active)
+    VALUES (
+        'system|system-user',                        -- Fake OIDC subject for local testing
+        'system@nexgeninc.com',
+        'System User',
+        1
+    );
+    SET @testUserId = SCOPE_IDENTITY();
+
+    -- Assign ADMIN role to test user
+    SELECT @userRoleId = id FROM RAP.ROLE_REF WHERE role_name = 'ADMIN';
+    INSERT INTO RAP.USER_ROLE (user_id, role_id, granted_by)
+    VALUES (@testUserId, @userRoleId, 'SYSTEM_SEED');
+    PRINT 'Seeded test user: system@nexgeninc.com';
+END
+ELSE
+    PRINT 'Test user system@nexgeninc.com already exists (seeded by bootstrap)';
+GO
+
+
 -- =============================================================================
 -- Flyway Migration V9: Seed initial internal (Azure AD SSO) user
 -- =============================================================================

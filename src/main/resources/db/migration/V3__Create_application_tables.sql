@@ -12,16 +12,20 @@ CREATE TABLE RAP.application (
     status NVARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
     owner_name NVARCHAR(255),
     owner_email NVARCHAR(255),
+    university_id BIGINT NULL,
     created_at DATETIME2 NOT NULL DEFAULT GETDATE(),
     created_by NVARCHAR(100),
     updated_at DATETIME2 NOT NULL DEFAULT GETDATE(),
     updated_by NVARCHAR(100),
+    CONSTRAINT FK_application_university_id FOREIGN KEY (university_id) 
+        REFERENCES RAP.university(university_id),
     
     -- Indexes for common query patterns
     INDEX idx_application_code (application_code),
     INDEX idx_application_name (application_name),
     INDEX idx_status (status),
-    INDEX idx_created_at (created_at)
+    INDEX idx_created_at (created_at),
+    INDEX idx_application_university_id (university_id)
 );
 
 -- Add check constraint for status values

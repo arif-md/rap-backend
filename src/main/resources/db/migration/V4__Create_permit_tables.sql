@@ -8,10 +8,14 @@ CREATE TABLE RAP.permit (
     expiry_date DATE,
     holder_id BIGINT NOT NULL,
     description NVARCHAR(1000),
+    university_id BIGINT NULL,
     created_at DATETIME2 NOT NULL DEFAULT GETDATE(),
     created_by NVARCHAR(255) NOT NULL,
     updated_at DATETIME2 NOT NULL DEFAULT GETDATE(),
-    updated_by NVARCHAR(255) NOT NULL
+    updated_by NVARCHAR(255) NOT NULL,
+    CONSTRAINT FK_permit_university_id FOREIGN KEY (university_id) 
+        REFERENCES RAP.university(university_id),
+    INDEX idx_permit_university_id (university_id)
 );
 
 -- Create index for holder_id for faster queries

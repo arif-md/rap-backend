@@ -13,8 +13,56 @@
 -- In local Docker dev, this migration is the primary source of table creation.
 -- ===================================================================
 
+-- ============================================================================
+-- 2. Base Tables - RAP Schema
+--    (definitions match infra bootstrap-schemas.sql exactly)
+-- ============================================================================
+
+-- 2.1 University reference table
+IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'RAP' AND t.name = 'university')
+BEGIN
+    CREATE TABLE RAP.university (
+        id BIGINT IDENTITY(1,1) PRIMARY KEY,
+        university_name NVARCHAR(255) NOT NULL,
+        university_code NVARCHAR(50) NOT NULL UNIQUE,
+        status NVARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
+        created_at DATETIME2 NOT NULL DEFAULT GETDATE(),
+        updated_at DATETIME2 NOT NULL DEFAULT GETDATE(),
+
+        INDEX idx_university_name (university_name),
+        INDEX idx_university_code (university_code),
+        INDEX idx_university_status (status)
+    );
+    PRINT 'Created table: RAP.university';
+END
+ELSE
+    PRINT 'Table RAP.university already exists';
+GO
+
+-- Seed universities
+IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'HARVARD')
+    INSERT INTO RAP.university (university_name, university_code) VALUES ('Harvard University', 'HARVARD');
+IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'STANFORD')
+    INSERT INTO RAP.university (university_name, university_code) VALUES ('Stanford University', 'STANFORD');
+IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'MIT')
+    INSERT INTO RAP.university (university_name, university_code) VALUES ('MIT', 'MIT');
+IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'OXFORD')
+    INSERT INTO RAP.university (university_name, university_code) VALUES ('Oxford University', 'OXFORD');
+IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'CAMBRIDGE')
+    INSERT INTO RAP.university (university_name, university_code) VALUES ('Cambridge University', 'CAMBRIDGE');
+IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'YALE')
+    INSERT INTO RAP.university (university_name, university_code) VALUES ('Yale University', 'YALE');
+IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'PRINCETON')
+    INSERT INTO RAP.university (university_name, university_code) VALUES ('Princeton University', 'PRINCETON');
+IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'COLUMBIA')
+    INSERT INTO RAP.university (university_name, university_code) VALUES ('Columbia University', 'COLUMBIA');
+IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'UCHICAGO')
+    INSERT INTO RAP.university (university_name, university_code) VALUES ('University of Chicago', 'UCHICAGO');
+IF NOT EXISTS (SELECT 1 FROM RAP.university WHERE university_code = 'IMPERIAL')
+    INSERT INTO RAP.university (university_name, university_code) VALUES ('Imperial College London', 'IMPERIAL');
+
 -- ===================================================================
--- 1. USER_INFO TABLE
+-- 2.2 USER_INFO TABLE
 -- ===================================================================
 -- Stores authenticated users from OIDC provider
 IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'RAP' AND t.name = 'USER_INFO')
@@ -47,7 +95,7 @@ ELSE
 GO
 
 -- ===================================================================
--- 2. ROLES TABLE
+-- 2.3. ROLES TABLE
 -- ===================================================================
 -- Application roles for authorization
 IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'RAP' AND t.name = 'ROLE_REF')
@@ -66,7 +114,7 @@ ELSE
 GO
 
 -- ===================================================================
--- 3. USER_ROLES TABLE (Many-to-Many)
+-- 2.4. USER_ROLES TABLE (Many-to-Many)
 -- ===================================================================
 -- Maps users to their assigned roles
 IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'RAP' AND t.name = 'USER_ROLE')
@@ -75,13 +123,15 @@ BEGIN
         id BIGINT IDENTITY(1,1) PRIMARY KEY,
         user_id BIGINT NOT NULL,
         role_id BIGINT NOT NULL,
+        university_id BIGINT NULL, 
         granted_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
         granted_by NVARCHAR(255),                     -- Admin who granted the role (for audit)
-
         CONSTRAINT FK_user_roles_user FOREIGN KEY (user_id) 
             REFERENCES RAP.USER_INFO(id) ON DELETE CASCADE,
         CONSTRAINT FK_user_roles_role FOREIGN KEY (role_id) 
             REFERENCES RAP.ROLE_REF(id) ON DELETE CASCADE,
+        CONSTRAINT FK_user_roles_university_id FOREIGN KEY (university_id) 
+            REFERENCES RAP.university(university_id),
         CONSTRAINT UQ_user_role UNIQUE (user_id, role_id),
         
         INDEX IX_user_roles_user_id (user_id),
@@ -94,7 +144,7 @@ ELSE
 GO
 
 -- ===================================================================
--- 4. REFRESH_TOKENS TABLE
+-- 2.5 REFRESH_TOKENS TABLE
 -- ===================================================================
 -- Stores refresh tokens for session extension without re-authentication
 IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'RAP' AND t.name = 'refresh_tokens')
@@ -132,7 +182,7 @@ ELSE
 GO
 
 -- ===================================================================
--- 5. REVOKED_TOKENS TABLE (Optional - Advanced)
+-- 2.6 REVOKED_TOKENS TABLE (Optional - Advanced)
 -- ===================================================================
 -- Tracks revoked JWT tokens for immediate invalidation
 -- Note: Only needed if you want instant JWT revocation before natural expiration
@@ -163,7 +213,7 @@ ELSE
 GO
 
 -- ===================================================================
--- 6. SEED DATA - Default Roles (idempotent)
+-- SEED DATA - Default Roles (idempotent)
 -- ===================================================================
 IF NOT EXISTS (SELECT 1 FROM RAP.ROLE_REF WHERE role_name = 'USER')
     INSERT INTO RAP.ROLE_REF (role_name, description) VALUES ('USER', 'Internal user with read access');
@@ -173,37 +223,46 @@ IF NOT EXISTS (SELECT 1 FROM RAP.ROLE_REF WHERE role_name = 'MANAGER')
     INSERT INTO RAP.ROLE_REF (role_name, description) VALUES ('MANAGER', 'Manager with read/write access to managed entities');
 IF NOT EXISTS (SELECT 1 FROM RAP.ROLE_REF WHERE role_name = 'ADMIN')
     INSERT INTO RAP.ROLE_REF (role_name, description) VALUES ('ADMIN', 'System administrator with full access');
+IF NOT EXISTS (SELECT 1 FROM RAP.ROLE_REF WHERE role_name = 'INTERNAL_USER')
+    INSERT INTO RAP.ROLE_REF (role_name, description) VALUES ('INTERNAL_USER', 'Internal user with access to internal dashboard and university-scoped data');
+PRINT 'Seeded RAP.ROLE_REF';
 GO
 
--- ===================================================================
--- 7. SEED DATA - Test User (for local development only, idempotent)
--- ===================================================================
--- Create a test user for local development
--- In production, users are created automatically on first OIDC login
-IF NOT EXISTS (SELECT 1 FROM RAP.USER_INFO WHERE oidc_subject = 'system|system-user')
+-- JBPM roles (matches V12 seed data)
+IF NOT EXISTS (SELECT 1 FROM JBPM.ROLE_REF WHERE role_code = 'kie-server')
+    INSERT INTO JBPM.ROLE_REF (role_code) VALUES ('kie-server');
+IF NOT EXISTS (SELECT 1 FROM JBPM.ROLE_REF WHERE role_code = 'admin')
+    INSERT INTO JBPM.ROLE_REF (role_code) VALUES ('admin');
+IF NOT EXISTS (SELECT 1 FROM JBPM.ROLE_REF WHERE role_code = 'user')
+    INSERT INTO JBPM.ROLE_REF (role_code) VALUES ('user');
+PRINT 'Seeded JBPM.ROLE_REF';
+GO
+
+-- Default JBPM service user (kieserver) - matches V12 seed data
+IF NOT EXISTS (SELECT 1 FROM JBPM.USER_INFO WHERE email = 'kieserver')
 BEGIN
-    DECLARE @testUserId BIGINT;
-    DECLARE @userRoleId BIGINT;
+    INSERT INTO JBPM.USER_INFO (email, pwd, lang) VALUES ('kieserver', 'kieserver123', 'en-UK');
 
-    -- Insert pre-defined users (IDENTITY will auto-generate ID)
-    INSERT INTO RAP.USER_INFO (oidc_subject, email, full_name, is_active)
-    VALUES (
-        'system|system-user',                        -- Fake OIDC subject for local testing
-        'system@nexgeninc.com',
-        'System User',
-        1
-    );
-    SET @testUserId = SCOPE_IDENTITY();
+    DECLARE @kieUserId INT = SCOPE_IDENTITY();
 
-    -- Assign ADMIN role to test user
-    SELECT @userRoleId = id FROM RAP.ROLE_REF WHERE role_name = 'ADMIN';
-    INSERT INTO RAP.USER_ROLE (user_id, role_id, granted_by)
-    VALUES (@testUserId, @userRoleId, 'SYSTEM_SEED');
-    PRINT 'Seeded test user: system@nexgeninc.com';
+    INSERT INTO JBPM.USER_ROLE (user_id, role_id)
+    SELECT @kieUserId, r.id FROM JBPM.ROLE_REF r WHERE r.role_code = 'kie-server';
+
+    INSERT INTO JBPM.USER_ROLE (user_id, role_id)
+    SELECT @kieUserId, r.id FROM JBPM.ROLE_REF r WHERE r.role_code = 'admin';
+
+    INSERT INTO JBPM.USER_ROLE (user_id, role_id)
+    SELECT @kieUserId, r.id FROM JBPM.ROLE_REF r WHERE r.role_code = 'user';
+
+    INSERT INTO JBPM.USER_GROUP (user_id, group_id, role_id)
+    SELECT @kieUserId, 'Administrators', r.id FROM JBPM.ROLE_REF r WHERE r.role_code = 'admin';
+
+    PRINT 'Seeded JBPM kieserver user with roles and groups';
 END
 ELSE
-    PRINT 'Test user system@nexgeninc.com already exists (seeded by bootstrap)';
+    PRINT 'JBPM kieserver user already exists';
 GO
+
 
 -- ===================================================================
 -- 8. CLEANUP JOBS (Comments - for future scheduled tasks)
