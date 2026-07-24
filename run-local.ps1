@@ -43,7 +43,10 @@
     - Keycloak container running on localhost:9090
     
     Hot Code Deployment:
-    - Start (foreground): Changes are auto-detected and reloaded (via Spring Boot DevTools)
+    - Start (foreground): a background watcher auto-recompiles src/ on save
+      (mvnw compile), which is what actually triggers Spring Boot DevTools'
+      restart - DevTools itself only watches target/classes and has no
+      compiler of its own, so nothing reloads without that recompile step
     - Background mode: Changes require manual restart
     - In VS Code Agent mode: Changes are NOT deployed until you accept them
 #>
@@ -138,8 +141,8 @@ function Show-Help {
     Write-Host ""
     Write-Host "HOT CODE DEPLOYMENT:" -ForegroundColor Cyan
     Write-Host "  • START mode (foreground):" -ForegroundColor White
-    Write-Host "    - Spring Boot DevTools auto-detects Java class changes" -ForegroundColor Gray
-    Write-Host "    - Application restarts automatically on save" -ForegroundColor Gray
+    Write-Host "    - A background watcher auto-recompiles src/ on save (mvnw compile)" -ForegroundColor Gray
+    Write-Host "    - Spring Boot DevTools then restarts automatically from that recompile" -ForegroundColor Gray
     Write-Host "    - Fast reload (seconds, not full restart)" -ForegroundColor Gray
     Write-Host ""
     Write-Host "  • BACKGROUND mode:" -ForegroundColor White
@@ -577,27 +580,31 @@ function Start-Foreground {
         Write-InfoMsg "Starting backend in foreground mode..."
         Write-Host ""
         Write-Host "  ✓ Hot reload ENABLED via Spring Boot DevTools" -ForegroundColor Green
-        Write-Host "    - Java class changes auto-detected" -ForegroundColor Gray
-        Write-Host "    - Application restarts automatically" -ForegroundColor Gray
+        Write-Host "    - This script auto-recompiles src/ on save (see below) so DevTools" -ForegroundColor Gray
+        Write-Host "      actually has something to react to" -ForegroundColor Gray
+        Write-Host "    - Application restarts automatically after each recompile" -ForegroundColor Gray
         Write-Host "    - Fast reload (3-5 seconds typical)" -ForegroundColor Gray
         Write-Host ""
+        Write-Host "  Note: VS Code's Java tooling compiles to its own internal diagnostics" -ForegroundColor Yellow
+        Write-Host "        cache, not target/classes, so saving alone would NOT normally" -ForegroundColor Yellow
+        Write-Host "        trigger DevTools - this script's own watcher below fills that gap." -ForegroundColor Yellow
         Write-Host "  Note: In VS Code Agent mode, changes are staged" -ForegroundColor Yellow
         Write-Host "        and NOT deployed until you accept them" -ForegroundColor Yellow
         Write-Host ""
         Write-InfoMsg "Press Ctrl+C to stop"
         Write-Host ""
-        
+
         # Register cleanup handler for Ctrl+C
         $port = Get-AppPort
         $cleanupScript = {
             param($Port)
             Write-Host ""
             Write-Host "[INFO] Cleaning up processes on port $Port..." -ForegroundColor Cyan
-            
+
             # Find and kill Java processes on the port
-            $processes = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | 
+            $processes = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue |
                          Select-Object -ExpandProperty OwningProcess -Unique
-            
+
             if ($processes) {
                 foreach ($procId in $processes) {
                     try {
@@ -612,12 +619,50 @@ function Start-Foreground {
                 }
             }
         }
-        
+
+        # DevTools only watches compiled .class files under target/classes and
+        # restarts the JVM context when they change - it has no compiler of its
+        # own. Run the actual recompile as a background job for the life of
+        # this process, so editing + saving in VS Code is enough on its own.
+        Write-InfoMsg "Starting background auto-recompile watcher (src/ -> target/classes)..."
+        $watchPath = (Resolve-Path (Join-Path $BackendDir "src")).Path
+        $watcherJob = Start-Job -Name "run-local-watch-$PID" -ArgumentList $BackendDir, $watchPath -ScriptBlock {
+            param($repoRoot, $watchPath)
+            Set-Location $repoRoot
+
+            $fsw = New-Object System.IO.FileSystemWatcher
+            $fsw.Path = $watchPath
+            $fsw.IncludeSubdirectories = $true
+            $fsw.NotifyFilter = [System.IO.NotifyFilters]::LastWrite -bor [System.IO.NotifyFilters]::FileName
+
+            try {
+                while ($true) {
+                    $result = $fsw.WaitForChanged([System.IO.WatcherChangeTypes]::All, 1000)
+                    if ($result.TimedOut) { continue }
+
+                    # Debounce: a single save can raise several change events in
+                    # quick succession (write + metadata) - collapse into one compile.
+                    Start-Sleep -Milliseconds 300
+                    while (-not $fsw.WaitForChanged([System.IO.WatcherChangeTypes]::All, 200).TimedOut) { }
+
+                    & .\mvnw.cmd compile -B -q
+                }
+            } finally {
+                $fsw.Dispose()
+            }
+        }
+
         try {
             & .\mvnw.cmd spring-boot:run
         } finally {
             # Always cleanup on exit (Ctrl+C or normal exit)
             & $cleanupScript -Port $port
+
+            if ($watcherJob) {
+                Write-Host "[INFO] Stopping background auto-recompile watcher..." -ForegroundColor Cyan
+                Stop-Job $watcherJob -ErrorAction SilentlyContinue | Out-Null
+                Remove-Job $watcherJob -Force -ErrorAction SilentlyContinue | Out-Null
+            }
         }
         
         # This line only executes if Maven exits (Ctrl+C or error)

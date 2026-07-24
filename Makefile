@@ -4,7 +4,7 @@
 # Convenient commands for local development with Docker Compose
 # Works with PowerShell on Windows
 
-.PHONY: help setup dev-start dev-stop dev-restart dev-rebuild dev-logs dev-status clean acr-login
+.PHONY: help setup dev-start dev-stop dev-restart container-stop container-start dev-rebuild dev-rebuild-force dev-logs dev-status clean-maven-cache clean acr-login
 
 # Default target
 .DEFAULT_GOAL := help
@@ -31,9 +31,13 @@ help: ## Show this help message
 	@echo "  make dev-full       - Start all services (frontend, backend, process, db)"
 	@echo "  make dev-stop       - Stop all services"
 	@echo "  make dev-restart    - Restart all services"
+	@echo "  make container-stop - Pause just the backend container (no rebuild on resume)"
+	@echo "  make container-start - Resume a container paused with container-stop"
 	@echo "  make dev-rebuild    - Rebuild and restart backend"
+	@echo "  make dev-rebuild-force - ...and force Maven -U to re-check for updated deps"
 	@echo "  make dev-logs       - View logs from all services"
 	@echo "  make dev-status     - Show status of all containers"
+	@echo "  make clean-maven-cache - Wipe the BuildKit Maven (.m2) cache mount (corrupt/stale cache only)"
 	@echo ""
 	@echo "Database Commands:"
 	@echo "  make db-init        - Initialize database with init scripts"
@@ -101,9 +105,23 @@ dev-restart: ## Restart all services
 	docker-compose restart
 	@echo Services restarted.
 
+container-stop: ## Pause just the backend container (no rebuild on resume)
+	@echo Stopping 'rap-backend' container (container + network are kept, not rebuilt on resume)...
+	docker stop rap-backend
+
+container-start: ## Resume a container paused with container-stop
+	@echo Resuming 'rap-backend' container...
+	docker start rap-backend
+
 dev-rebuild: ## Rebuild backend image and restart
 	@echo Rebuilding backend service...
 	docker-compose up -d --build backend
+	@echo Backend rebuilt and restarted.
+
+dev-rebuild-force: ## Rebuild backend image, forcing Maven -U update check, and restart
+	@echo Rebuilding backend service (forcing Maven -U update check)...
+	docker-compose build --build-arg MAVEN_UPDATE_FLAG=-U backend
+	docker-compose up -d backend
 	@echo Backend rebuilt and restarted.
 
 dev-logs: ## View logs from all running services
@@ -122,6 +140,10 @@ dev-status: ## Show status of all containers
 	@echo ""
 	@echo "=== Service Health ==="
 	@docker ps --filter "name=rap-" --format "table {{.Names}}\t{{.Status}}"
+
+clean-maven-cache: ## Wipe the BuildKit Maven (.m2) cache mount (corrupt/stale cache only)
+	@echo Pruning BuildKit Maven (.m2) cache mounts...
+	docker builder prune --filter type=exec.cachemount -f
 
 # -----------------------------------------------------------------------------
 # Database Management

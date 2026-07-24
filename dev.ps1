@@ -12,9 +12,12 @@ function Help {
     Write-Host "  Dev-Full            Start all services (full stack)" -ForegroundColor White
     Write-Host "  Dev-Stop            Stop all services" -ForegroundColor White
     Write-Host "  Dev-Restart         Restart all services" -ForegroundColor White
-    Write-Host "  Dev-Rebuild         Rebuild backend and restart" -ForegroundColor White
+    Write-Host "  Container-Stop      Pause just the backend container (no rebuild on resume)" -ForegroundColor White
+    Write-Host "  Container-Start     Resume a container paused with Container-Stop" -ForegroundColor White
+    Write-Host "  Dev-Rebuild [-ForceUpdate]  Rebuild backend and restart" -ForegroundColor White
     Write-Host "  Dev-Logs [service]  View logs for a service or all" -ForegroundColor White
     Write-Host "  Image-Build [-NoCache]  Build backend Docker image (use -NoCache to force full rebuild)" -ForegroundColor White
+    Write-Host "  Clean-Maven-Cache   Wipe the BuildKit Maven (.m2) cache mount (corrupt/stale cache only)" -ForegroundColor White
     Write-Host "  Image-Push          Push backend image to ACR" -ForegroundColor White
     Write-Host "  DB-Init             Initialize database" -ForegroundColor White
     Write-Host "  DB-Connect          Connect to database" -ForegroundColor White
@@ -22,14 +25,18 @@ function Help {
     Write-Host "  Flyway-Repair       Fix 'checksum mismatch' errors after editing a migration file" -ForegroundColor White
     Write-Host "  Clean               Clean up containers and networks" -ForegroundColor White
     Write-Host "  Clean-All           Remove all containers, networks, and volumes" -ForegroundColor White
-    Write-Host "" 
+    Write-Host ""
     Write-Host "Options:" -ForegroundColor Yellow
     Write-Host "  -NoCache            (Image-Build only) Build Docker image without cache" -ForegroundColor White
-    Write-Host "" 
+    Write-Host "  -ForceUpdate        (Dev-Rebuild only) Pass Maven -U to re-check remote repos for" -ForegroundColor White
+    Write-Host "                      updated snapshots/releases, without wiping the whole .m2 cache" -ForegroundColor White
+    Write-Host ""
     Write-Host "Examples:" -ForegroundColor Yellow
     Write-Host "  ./dev.ps1 Image-Build           # Build backend image (uses cache)" -ForegroundColor White
     Write-Host "  ./dev.ps1 Image-Build -NoCache  # Build backend image without cache (forces full rebuild)" -ForegroundColor White
-    Write-Host "" 
+    Write-Host "  ./dev.ps1 Dev-Rebuild -ForceUpdate  # Rebuild + force Maven to re-check for updated deps" -ForegroundColor White
+    Write-Host "  ./dev.ps1 Container-Stop        # Free port 8080 without a full rebuild-on-resume" -ForegroundColor White
+    Write-Host ""
     Write-Host "The -NoCache flag is recommended if you suspect Docker is not picking up code changes." -ForegroundColor Yellow
 }
 # RAP Backend Development Scripts
@@ -199,14 +206,64 @@ function Dev-Restart {
 
 # Rebuild backend and restart
 function Dev-Rebuild {
+    param([switch]$ForceUpdate)
+
     Load-EnvFile
-    Write-Host "Rebuilding backend service..." -ForegroundColor Cyan
-    docker-compose up -d --build backend
-    
+    if ($ForceUpdate) {
+        Write-Host "Rebuilding backend service (forcing Maven -U update check)..." -ForegroundColor Cyan
+        docker-compose build --build-arg MAVEN_UPDATE_FLAG=-U backend
+        docker-compose up -d backend
+    } else {
+        Write-Host "Rebuilding backend service..." -ForegroundColor Cyan
+        docker-compose up -d --build backend
+    }
+
     if ($LASTEXITCODE -eq 0) {
         Write-Host "[OK] Backend rebuilt and restarted" -ForegroundColor Green
     } else {
         Write-Host "[ERROR] Failed to rebuild backend" -ForegroundColor Red
+    }
+}
+
+# Pause just the backend container (no teardown) — backend/docker-compose.yml
+# bundles frontend + backend + keycloak + keycloak-db + database + process
+# together, so Dev-Stop/Clean/Dev-Restart affect all of them. Use this to
+# free port 8080 without touching anything else, or to stop just the backend
+# for a quick pause/resume.
+function Container-Stop {
+    Write-Host "Stopping 'rap-backend' container (container + network are kept, not rebuilt on resume)..." -ForegroundColor Cyan
+    docker stop rap-backend
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "[OK] Container stopped - resume with: .\dev.ps1 Container-Start" -ForegroundColor Green
+    } else {
+        Write-Host "[ERROR] Failed to stop container (is it running? try .\dev.ps1 Dev-Start)" -ForegroundColor Red
+    }
+}
+
+# Resume a container previously paused with Container-Stop
+function Container-Start {
+    Write-Host "Resuming 'rap-backend' container..." -ForegroundColor Cyan
+    docker start rap-backend
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "[OK] Container resumed" -ForegroundColor Green
+    } else {
+        Write-Host "[ERROR] Failed to resume container - it may not exist yet, try .\dev.ps1 Dev-Start" -ForegroundColor Red
+    }
+}
+
+# Wipe the BuildKit Maven cache mount (use if the .m2 cache itself is
+# suspected corrupt/stale — not needed just to pick up newer snapshot
+# versions, which -ForceUpdate handles without losing the whole cache)
+function Clean-Maven-Cache {
+    Write-Host "Pruning BuildKit Maven (.m2) cache mounts..." -ForegroundColor Cyan
+    docker builder prune --filter type=exec.cachemount -f
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "[OK] Maven cache mounts cleared" -ForegroundColor Green
+    } else {
+        Write-Host "[ERROR] Failed to clear Maven cache mounts" -ForegroundColor Red
     }
 }
 
@@ -456,11 +513,14 @@ function Show-Help {
     Write-Host "Development Commands:" -ForegroundColor Yellow
     Write-Host "  Dev-Start          - Start backend + database only"
     Write-Host "  Dev-Full           - Start all services (frontend, backend, process, db)"
-    Write-Host "  Dev-Stop           - Stop all services"
+    Write-Host "  Dev-Stop           - Stop all services (note: this compose file bundles frontend/backend/keycloak/db/process together)"
     Write-Host "  Dev-Restart        - Restart all services"
-    Write-Host "  Dev-Rebuild        - Rebuild and restart backend"
+    Write-Host "  Container-Stop     - Pause just the backend container (no rebuild on resume, doesn't touch other services)"
+    Write-Host "  Container-Start    - Resume a container paused with Container-Stop"
+    Write-Host "  Dev-Rebuild [-ForceUpdate] - Rebuild and restart backend"
     Write-Host "  Dev-Logs [service] - View logs (optionally for specific service)"
     Write-Host "  Dev-Status         - Show status of all containers"
+    Write-Host "  Clean-Maven-Cache  - Wipe the BuildKit Maven (.m2) cache mount (corrupt/stale cache only)"
     Write-Host ""
     Write-Host "Database Commands:" -ForegroundColor Yellow
     Write-Host "  DB-Init            - Initialize database with init scripts"
@@ -483,6 +543,8 @@ function Show-Help {
     Write-Host "  .\dev.ps1 Dev-Start"
     Write-Host "  .\dev.ps1 Dev-Logs backend"
     Write-Host "  .\dev.ps1 DB-Init"
+    Write-Host "  .\dev.ps1 Dev-Rebuild -ForceUpdate"
+    Write-Host "  .\dev.ps1 Container-Stop"
     Write-Host ""
 }
 
@@ -504,9 +566,12 @@ if ($args.Count -eq 0) {
         "Dev-Full" { Dev-Full }
         "Dev-Stop" { Dev-Stop }
         "Dev-Restart" { Dev-Restart }
-        "Dev-Rebuild" { Dev-Rebuild }
+        "Container-Stop" { Container-Stop }
+        "Container-Start" { Container-Start }
+        "Dev-Rebuild" { Dev-Rebuild @additionalArgs }
         "Dev-Logs" { Dev-Logs @additionalArgs }
         "Dev-Status" { Dev-Status }
+        "Clean-Maven-Cache" { Clean-Maven-Cache }
         "DB-Init" { DB-Init }
         "DB-Connect" { DB-Connect }
         "DB-Reset" { DB-Reset }

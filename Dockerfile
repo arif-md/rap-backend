@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Multi-stage build for Spring Boot application
 # Stage 1: Build stage
 # Use a JDK image instead of Maven image since we're using Maven Wrapper
@@ -10,17 +11,26 @@ WORKDIR /app
 COPY mvnw mvnw.cmd pom.xml ./
 COPY .mvn .mvn
 
+# Pass -U (via Dev-Build/Dev-Rebuild -ForceUpdate) to make Maven re-check
+# remote repos for updated snapshots/releases instead of trusting the cache
+ARG MAVEN_UPDATE_FLAG=
+
 # Download dependencies only (cached if pom.xml hasn't changed)
-# This creates a separate cached layer containing all dependencies in /root/.m2/
-RUN ./mvnw dependency:go-offline -B
+# The BuildKit cache mount persists /root/.m2 across builds independent of
+# layer invalidation — dependency:go-offline alone doesn't reliably fetch
+# everything a later build needs (plugin deps in particular), so without
+# this mount, every source change triggers a fresh set of network fetches
+# even when this layer itself is cache-hit.
+RUN --mount=type=cache,target=/root/.m2,sharing=locked \
+    ./mvnw dependency:go-offline -B $MAVEN_UPDATE_FLAG
 
 # Copy source code
 COPY src ./src
 
-# Build the application without re-downloading dependencies
-# The dependencies from the previous RUN layer are available in /root/.m2/
-# Skip tests in Docker build for faster builds (run tests in CI/CD)
-RUN ./mvnw package -DskipTests -B
+# Build the application. Skip tests in Docker build for faster builds (run
+# tests in CI/CD). Uses the same persistent .m2 cache mount as above.
+RUN --mount=type=cache,target=/root/.m2,sharing=locked \
+    ./mvnw package -DskipTests -B $MAVEN_UPDATE_FLAG
 
 # Extract layers from the WAR file for optimized Docker layers
 WORKDIR /app/target
