@@ -169,6 +169,21 @@ function Show-Help {
     Write-Host "  • Logs saved to:  backend-local.log" -ForegroundColor White
     Write-Host "  • Health check:   http://localhost:8080/actuator/health" -ForegroundColor White
     Write-Host ""
+    Write-Host "SWITCHING OIDC PROVIDER (Keycloak <-> Login.gov):" -ForegroundColor Cyan
+    Write-Host "  This script no longer overrides OIDC_TOKEN_ENDPOINT / OIDC_USER_INFO_ENDPOINT /" -ForegroundColor Gray
+    Write-Host "  OIDC_JWK_SET_URI - whatever .env sets for these is used as-is, so it must match" -ForegroundColor Gray
+    Write-Host "  the provider you actually want (same as docker-compose does)." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  • Login.gov (sandbox): keep the idp.int.identitysandbox.gov lines in .env" -ForegroundColor White
+    Write-Host "    uncommented for OIDC_AUTHORIZATION_ENDPOINT / OIDC_TOKEN_ENDPOINT /" -ForegroundColor Gray
+    Write-Host "    OIDC_USER_INFO_ENDPOINT / OIDC_JWK_SET_URI / OIDC_END_SESSION_ENDPOINT." -ForegroundColor Gray
+    Write-Host "  • Local Keycloak: comment those out and uncomment the http://localhost:9090" -ForegroundColor White
+    Write-Host "    / http://host.docker.internal:9090 alternatives instead - for foreground" -ForegroundColor Gray
+    Write-Host "    mode (this script) use the localhost:9090 variants, NOT the" -ForegroundColor Gray
+    Write-Host "    host.docker.internal ones (only resolvable from inside a container)." -ForegroundColor Gray
+    Write-Host "  • All four/five endpoints must point at the SAME provider - a mix (e.g. token" -ForegroundColor White
+    Write-Host "    from one, JWK-set from another) fails login with invalid_id_token." -ForegroundColor Gray
+    Write-Host ""
 }
 
 # Color output functions
@@ -250,10 +265,11 @@ function Initialize-EnvironmentVariables {
     # SQL Server connection (local: localhost, container: database or host.docker.internal)
     $env:AZURE_SQL_CONNECTIONSTRING = "jdbc:sqlserver://localhost:1433;databaseName=raptordb;user=$env:DB_USERNAME;password=$env:DB_PASSWORD;encrypt=true;trustServerCertificate=true"
 
-    # Keycloak URLs (local: localhost, container: host.docker.internal)
-    $env:OIDC_TOKEN_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/token"
-    $env:OIDC_USER_INFO_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/userinfo"
-    $env:OIDC_JWK_SET_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/certs"
+    # OIDC token/userinfo/JWK endpoints are left as loaded from .env - they must stay
+    # consistent with whichever provider .env configures (Keycloak, Login.gov, etc.),
+    # matching what docker-compose passes into the container. Don't hardcode Keycloak
+    # URLs here - that silently breaks JWK-set verification when .env points elsewhere
+    # (mismatched issuer/signing keys triggers "invalid_id_token" on login).
 
     # Pin DevTools LiveReload to a port dedicated to this service. Left at the
     # Spring Boot default (35729), but set explicitly so it's obvious this is
