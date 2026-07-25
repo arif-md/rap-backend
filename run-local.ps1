@@ -66,6 +66,10 @@ $LogFile = Join-Path $BackendDir "backend-local.log"
 # Default port (will be overridden from .env file)
 $AppPort = 8080
 
+# Spring Boot DevTools LiveReload server port (spring.devtools.livereload.enabled=true
+# in application.properties, no custom livereload.port configured, so this is the default)
+$LiveReloadPort = 35729
+
 # Function to load environment variables and get port
 function Get-AppPort {
     $port = 8080  # Default
@@ -251,6 +255,14 @@ function Initialize-EnvironmentVariables {
     $env:OIDC_USER_INFO_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/userinfo"
     $env:OIDC_JWK_SET_URI = "http://localhost:9090/realms/raptor/protocol/openid-connect/certs"
 
+    # Pin DevTools LiveReload to a port dedicated to this service. Left at the
+    # Spring Boot default (35729), but set explicitly so it's obvious this is
+    # coordinated with processes/dev.ps1's LiveReload port (35730) - without
+    # this, both services fall back to the same default port, and whichever
+    # one starts second force-kills the other's process thinking it's a stale
+    # leftover (see Ensure-PortFree).
+    $env:SPRING_DEVTOOLS_LIVERELOAD_PORT = "$LiveReloadPort"
+
     Write-SuccessMsg "URLs configured for local execution"
 }
 
@@ -343,6 +355,24 @@ function Stop-JavaOnPort {
     return $true
 }
 
+# Function to free up a port by stopping whatever Java process is bound to it
+# (used for both the app port and the DevTools LiveReload port before start)
+function Ensure-PortFree {
+    param(
+        [int]$Port,
+        [string]$Label = "port"
+    )
+
+    if (Test-PortInUse -Port $Port) {
+        Write-InfoMsg "$Label $Port is in use, stopping existing process..."
+        if (-not (Stop-JavaOnPort -Port $Port)) {
+            Write-ErrorMsg "Failed to free $Label $Port. Please manually stop the process using it."
+            Write-InfoMsg "You can find the process with: Get-NetTCPConnection -LocalPort $Port"
+            exit 1
+        }
+    }
+}
+
 # Function to stop running backend
 function Stop-Backend {
     $stopped = $false
@@ -424,17 +454,11 @@ function Run-Background {
     Write-Host "  Backend Port: $port" -ForegroundColor White
     Write-Host ""
 
-    # Check if port is already in use
-    if (Test-PortInUse -Port $port) {
-        Write-ErrorMsg "Port $port is already in use!"
-        Write-InfoMsg "Attempting to stop existing process..."
-        
-        if (-not (Stop-JavaOnPort -Port $port)) {
-            Write-ErrorMsg "Failed to free port ${port}. Please manually stop the process using it."
-            Write-InfoMsg "You can find the process with: Get-NetTCPConnection -LocalPort $port"
-            exit 1
-        }
-    }
+    # Check if the app port or the DevTools LiveReload port are already in use
+    # (a leftover process from a previous run, e.g. an ungraceful exit, can hold
+    # either one and cause a BindException on start)
+    Ensure-PortFree -Port $port -Label "Backend port"
+    Ensure-PortFree -Port $LiveReloadPort -Label "LiveReload port"
 
     # Stop any existing backend process
     if (Test-Path $PidFile) {
@@ -554,17 +578,11 @@ function Start-Foreground {
     Write-Host "  Backend Port: $port" -ForegroundColor White
     Write-Host ""
 
-    # Check if port is already in use
-    if (Test-PortInUse -Port $port) {
-        Write-ErrorMsg "Port $port is already in use!"
-        Write-InfoMsg "Attempting to stop existing process..."
-        
-        if (-not (Stop-JavaOnPort -Port $port)) {
-            Write-ErrorMsg "Failed to free port ${port}. Please manually stop the process using it."
-            Write-InfoMsg "You can find the process with: Get-NetTCPConnection -LocalPort $port"
-            exit 1
-        }
-    }
+    # Check if the app port or the DevTools LiveReload port are already in use
+    # (a leftover process from a previous run, e.g. an ungraceful exit, can hold
+    # either one and cause a BindException on start)
+    Ensure-PortFree -Port $port -Label "Backend port"
+    Ensure-PortFree -Port $LiveReloadPort -Label "LiveReload port"
 
     # Stop any existing backend process
     if (Test-Path $PidFile) {
