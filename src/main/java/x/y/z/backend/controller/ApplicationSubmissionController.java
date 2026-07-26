@@ -1,5 +1,7 @@
 package x.y.z.backend.controller;
 
+import org.kie.internal.process.CorrelationKey;
+import org.kie.server.client.ProcessServicesClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -13,9 +15,10 @@ import org.springframework.web.bind.annotation.*;
 import x.y.z.backend.controller.dto.ApplicationSubmissionRequest;
 import x.y.z.backend.controller.dto.ApplicationSubmissionResponse;
 import x.y.z.backend.domain.model.Application;
+import x.y.z.backend.domain.model.ProcessInfo;
 import x.y.z.backend.security.JwtAuthenticationFilter;
 import x.y.z.backend.service.ApplicationSubmissionService;
-
+import x.y.z.backend.utils.KieClient;
 import jakarta.validation.Valid;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,7 +29,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/applications/submissions")
-public class ApplicationSubmissionController {
+public class ApplicationSubmissionController extends BaseController {
 
     private static final Logger logger = LoggerFactory.getLogger(ApplicationSubmissionController.class);
 
@@ -62,6 +65,11 @@ public class ApplicationSubmissionController {
 
             // Process the application submission
             Application createdApplication = applicationSubmissionService.submitApplication(request, userId);
+
+            Map<String, Object> processVars = new HashMap<>();
+            //processVars.put(Constants.DOMAIN_PERMIT_STATUS, Constants.CD_PERMIT_STATUS_PRE_APP_NOT_SUBMITTED);
+            startProcess(ProcessInfo.NEW_SRP_APPLICATION, true, createdApplication, 
+                userId, processVars);
 
             // Create success response
             ApplicationSubmissionResponse response = new ApplicationSubmissionResponse(

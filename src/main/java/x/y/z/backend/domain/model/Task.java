@@ -1,5 +1,6 @@
 package x.y.z.backend.domain.model;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
@@ -7,9 +8,18 @@ import java.time.LocalDateTime;
  * This is used for the "Action Needed" tab in the dashboard.
  * Plain Java object without JPA annotations, used with MyBatis.
  */
-public class Task {
+public class Task implements Serializable {
     
+    private static final long serialVersionUID = 1L;
+
     private Long id;
+    //unique ID of process instance in process server to which this task is associated to.
+    private Long processInstanceId;
+
+    //Name of the container on process server to which this belongs to.
+    //If we have different versions of a process the container will be different for each version.
+    private String containerId;
+
     private String function;
     private String task;
     private String applicationNumber;
@@ -39,6 +49,13 @@ public class Task {
         this.type = type;
     }
 
+    public Task(Long processInstanceId, String containerId, Long id){
+    	this.processInstanceId = processInstanceId;
+    	this.containerId = containerId;
+    	this.id = id;
+    }
+
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -48,6 +65,18 @@ public class Task {
         this.id = id;
     }
 
+    public Long getProcessInstanceId() {
+        return processInstanceId;
+    }
+    public void setProcessInstanceId(Long processInstanceId) {
+        this.processInstanceId = processInstanceId;
+    }
+    public String getContainerId() {
+        return containerId;
+    }
+    public void setContainerId(String containerId) {
+        this.containerId = containerId;
+    }
     public String getFunction() {
         return function;
     }

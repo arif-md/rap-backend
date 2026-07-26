@@ -31,6 +31,7 @@
 		<java.version>17</java.version>
 		<azure.version>1.2.19</azure.version>
 		<spring-cloud-azure.version>5.18.0</spring-cloud-azure.version>
+        <jbpm.version>7.74.1.Final</jbpm.version>
 	</properties>
 	<repositories>
 		<!-- Shibboleth repository for OpenSAML dependencies -->
@@ -46,6 +47,13 @@
 				<groupId>com.azure.spring</groupId>
 				<artifactId>spring-cloud-azure-dependencies</artifactId>
 				<version>${spring-cloud-azure.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.jbpm</groupId>
+				<artifactId>jbpm-bom</artifactId>
+				<version>${jbpm.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
@@ -158,6 +166,16 @@
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-sqlserver</artifactId>
+		</dependency>
+
+        <!-- KIE Client libraries-->
+		<dependency>
+			<groupId>org.kie.server</groupId>
+			<artifactId>kie-server-client</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.jbpm</groupId>
+			<artifactId>jbpm-document</artifactId>
 		</dependency>
 
 		<!-- Transaction Management (without JPA) -->

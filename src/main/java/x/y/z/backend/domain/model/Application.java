@@ -6,16 +6,13 @@ import java.time.LocalDateTime;
  * Application POJO - Domain model representing an application entity.
  * This is a plain Java object without JPA annotations, used with MyBatis.
  */
-public class Application {
+public class Application extends TaskForm {
     
-    private Long id;
     private String applicationName;
-    private String applicationCode;
     private String description;
     private String status;
     private String ownerName;
     private String ownerEmail;
-    private Long universityId;
     private String universityName; // Transient - populated via JOIN
     private LocalDateTime createdAt;
     private String createdBy;
@@ -38,28 +35,12 @@ public class Application {
     }
 
     // Getters and Setters
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
     public String getApplicationName() {
         return applicationName;
     }
 
     public void setApplicationName(String applicationName) {
         this.applicationName = applicationName;
-    }
-
-    public String getApplicationCode() {
-        return applicationCode;
-    }
-
-    public void setApplicationCode(String applicationCode) {
-        this.applicationCode = applicationCode;
     }
 
     public String getDescription() {
@@ -92,14 +73,6 @@ public class Application {
 
     public void setOwnerEmail(String ownerEmail) {
         this.ownerEmail = ownerEmail;
-    }
-
-    public Long getUniversityId() {
-        return universityId;
-    }
-
-    public void setUniversityId(Long universityId) {
-        this.universityId = universityId;
     }
 
     public String getUniversityName() {
@@ -145,7 +118,7 @@ public class Application {
     @Override
     public String toString() {
         return "Application{" +
-                "id=" + id +
+                "id=" + this.id +
                 ", applicationName='" + applicationName + '\'' +
                 ", applicationCode='" + applicationCode + '\'' +
                 ", status='" + status + '\'' +
