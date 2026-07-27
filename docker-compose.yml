@@ -219,8 +219,8 @@ services:
       FLYWAY_USER: sa
       FLYWAY_PASSWORD: YourStrong@Passw0rd
       KIESERVER_CORS_ALLOWED_ORIGINS: http://localhost:4200,http://localhost:3000
-      JBPM_HT_ADMIN_USER: kieserver
-      JBPM_HT_ADMIN_GROUP: Administrators
+      JBPM_HT_ADMIN_USER: wbadmin
+      JBPM_HT_ADMIN_GROUP: task_admin#All
       JAVA_OPTS: "-Xmx1g -Xms512m -Dorg.kie.server.startup.strategy=LocalContainersStartupStrategy -Dorg.kie.server.persistence.schema=JBPM"
     ports:
       - "8090:8090"
