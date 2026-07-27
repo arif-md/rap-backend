@@ -9,8 +9,11 @@ Spring Boot REST API for the RAP application: owns user auth (dual OIDC/Azure AD
 applications, permits, universities, and a local workflow "tasks" table. It does **not**
 own BPMN process definitions or human-task orchestration logic — that's `rap-processes`
 (jBPM, port 8090). Despite the name, `WorkflowController`/`ProcessService`/`ProcessHandler`
-currently read/write a local `tasks` SQL table (migration `V6__Create_task_table.sql`) —
-there is no REST/HTTP call from this codebase into the jBPM service yet.
+still read/write a local `tasks` SQL table (migration `V6__Create_task_table.sql`) and are
+independent of jBPM. A separate, growing integration point calls the jBPM process service
+directly via the KIE Server Java client (`KieClient`/`BaseController.startProcess()` —
+see Dependencies & integrations below); more jBPM calls (retrieving active process
+instances, retrieving tasks) are planned there.
 
 ## Tech stack
 - Spring Boot 3.5.5, Java 17, packaged as `.war` (Tomcat provided, embeddable)
@@ -55,8 +58,18 @@ Run from `backend/` (see parent CLAUDE.md for the full `dev.ps1`/`make` command 
 
 ## Dependencies & integrations
 - Downstream: `rap-frontend` (Angular, calls this API directly)
-- Peer: `rap-processes` (jBPM) — not yet called over HTTP from this service despite the
-  `Workflow`/`Process` naming (see Purpose)
+- Peer: `rap-processes` (jBPM, port 8090) — called via the KIE Server Java client
+  (`org.kie.server.client`, `kie-server-client` dependency), not a hand-rolled REST client.
+  `KieClient` (`utils/KieClient.java`) lazily builds a singleton `KieServicesClient` from
+  `env.kieServerURL`/`env.kieServerUser`/`env.kieServerPwd` (set at the bottom of
+  `application.properties`) and hands out typed sub-clients (`ProcessServicesClient`,
+  `UserTaskServicesClient`, `QueryServicesClient`, `DocumentServicesClient`, plus admin
+  clients). `BaseController.startProcess()` is the current entry point, used by
+  `ApplicationSubmissionController` to start a process instance on application submission.
+  Expect more jBPM calls here going forward (querying active process instances, retrieving
+  user tasks) via `KieClient.getProcessServicesClient()` / `getUserTaskServicesClient()` /
+  `getQueryServicesClient()`. This is separate from the local `tasks` table read by
+  `WorkflowController` (see Purpose) — don't conflate the two.
 - External: local Keycloak (OIDC, port 9090) or Azure Entra ID (Azure AD SSO) for login;
   Azure SQL / SQL Server 2022 container for data
 - Key env vars (see `.env.example` for the full list): `JWT_SECRET`,
@@ -97,10 +110,19 @@ Run from `backend/` (see parent CLAUDE.md for the full `dev.ps1`/`make` command 
   (or class) level, not manual role checks in handlers/services.
 
 ## Gotchas / do & don't
-- Don't add a live HTTP client call from this service into the jBPM process service without
-  checking with the user first — the current `ProcessService`/`WorkflowController` naming
-  looks like it should proxy jBPM but is actually a self-contained local table; conflating
-  the two is an easy mistake.
+- `ProcessService`/`WorkflowController` (local `tasks` table) and `KieClient`/
+  `BaseController.startProcess()` (real jBPM calls) are two separate, non-overlapping
+  integration points that happen to sound alike — don't conflate them when adding a
+  jBPM-backed feature.
+- `ApplicationAttributes` (`config/ApplicationAttributes.java`) pushes the `env.kieServer*`
+  properties into `KieClient`'s static fields via `afterPropertiesSet()`. It **must** stay
+  a default (singleton-scoped) bean — giving it a non-singleton scope (e.g.
+  `@Scope("application")`) means nothing ever triggers Spring to instantiate it (custom
+  scopes aren't eagerly created at context startup, and nothing else injects this bean), so
+  `afterPropertiesSet()` silently never runs and `KieClient`'s URL/user/password stay
+  `null`. There's no startup error — it only surfaces later as `KieServicesClientImpl`
+  throwing `NoEndpointFoundException: No available endpoints found` the first time a jBPM
+  call is made.
 - `docs/DATABASE-SCHEMA-STRATEGY.md` references a `V13__Create_RAP_schema.sql` migration
   that does not exist in this repo (migrations currently stop at `V6`) — treat that doc as
   partially aspirational/stale, not authoritative, when reasoning about migration numbering.

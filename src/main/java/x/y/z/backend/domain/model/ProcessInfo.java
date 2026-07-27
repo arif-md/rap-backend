@@ -9,8 +9,10 @@ public enum ProcessInfo {
 
 	
 	//Recreation container and all process definitions inside that container.
-    public static final String REC_CONTAINER = "raptor-recreation-process";
-	public static final String REC_APPLICATION_PROCESS = "recreation-application";
+	//Uses the KIE server containerAlias (not the versioned containerId) so redeploys to a
+	//new container version resolve automatically without a backend code change.
+    public static final String REC_CONTAINER = "mod1-processes";
+	public static final String REC_APPLICATION_PROCESS = "mod1-app";
 	public static final String REC_LETTER_PROCESS = "recreation-letter";
 	
 	//Paleontology container and all process definitions inside that container.	
