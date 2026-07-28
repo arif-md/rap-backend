@@ -60,6 +60,20 @@
         WHERE id = #{id}
     </update>
 
+    <!-- Update Application from the submission/save flow (also updates university_id) -->
+    <update id="updateSubmission" parameterType="x.y.z.backend.domain.model.Application">
+        UPDATE RAP.application
+        SET application_name = #{applicationName},
+            description = #{description},
+            status = #{status},
+            owner_name = #{ownerName},
+            owner_email = #{ownerEmail},
+            university_id = #{universityId},
+            updated_at = GETDATE(),
+            updated_by = #{updatedBy}
+        WHERE id = #{id}
+    </update>
+
     <!-- Delete Application by ID -->
     <delete id="deleteById">
         DELETE FROM RAP.application WHERE id = #{id}
@@ -67,7 +81,7 @@
 
     <!-- Find Application by ID -->
     <select id="findById" resultMap="ApplicationResultMap">
-        SELECT 
+        SELECT
             id,
             application_name,
             application_code,
@@ -75,6 +89,7 @@
             status,
             owner_name,
             owner_email,
+            university_id,
             created_at,
             created_by,
             updated_at,

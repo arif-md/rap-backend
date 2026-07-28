@@ -38,11 +38,20 @@ public class ApplicationSubmissionService {
         // Server-side validation
         validateApplicationRequest(request);
 
-        // Delegate to handler for processing
-        Application application = applicationSubmissionHandler.createApplicationFromRequest(request, username);
+        // Delegate to handler for processing (creates or updates based on request.getApplicationId())
+        Application application = applicationSubmissionHandler.saveApplicationFromRequest(request, username);
 
-        logger.info("Application created with code: {}", application.getApplicationCode());
+        logger.info("Application saved with code: {}", application.getApplicationCode());
         return application;
+    }
+
+    /**
+     * Find the process instance already associated with an application via
+     * RAP.WORKFLOW_APP_ASSOC, or null if none has been started yet.
+     */
+    @Transactional(readOnly = true)
+    public Long findAssociatedProcessInstanceId(Long applicationId) {
+        return applicationSubmissionHandler.findActiveProcessInstanceId(applicationId);
     }
 
     /**

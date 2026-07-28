@@ -1,7 +1,8 @@
 package x.y.z.backend.controller;
 
-import org.kie.internal.process.CorrelationKey;
-import org.kie.server.client.ProcessServicesClient;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -11,17 +12,20 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.validation.Valid;
 import x.y.z.backend.controller.dto.ApplicationSubmissionRequest;
 import x.y.z.backend.controller.dto.ApplicationSubmissionResponse;
 import x.y.z.backend.domain.model.Application;
+import x.y.z.backend.domain.model.Constants;
 import x.y.z.backend.domain.model.ProcessInfo;
 import x.y.z.backend.security.JwtAuthenticationFilter;
 import x.y.z.backend.service.ApplicationSubmissionService;
-import x.y.z.backend.utils.KieClient;
-import jakarta.validation.Valid;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * REST Controller for handling university admission application submissions.
@@ -40,8 +44,10 @@ public class ApplicationSubmissionController extends BaseController {
     }
 
     /**
-     * Submit a new university admission application.
-     * 
+     * Submit a university admission application. Creates a new application if
+     * {@code request.applicationId} is null, otherwise updates the existing one.
+     * Always ends with a started jBPM process (started here if not already running).
+     *
      * @param request the application submission request with validated data
      * @return ResponseEntity containing the application number and success message
      */
@@ -49,46 +55,92 @@ public class ApplicationSubmissionController extends BaseController {
     @PreAuthorize("hasRole('EXTERNAL_USER')")
     public ResponseEntity<ApplicationSubmissionResponse> submitApplication(
             @Valid @RequestBody ApplicationSubmissionRequest request) {
-        
+
         logger.info("Received application submission request: {}", request);
 
+        Application application = processApplicationAndStartWorkflow(request);
+
+        ApplicationSubmissionResponse response = new ApplicationSubmissionResponse(
+            application.getId(),
+            application.getApplicationCode(),
+            "Application submitted successfully"
+        );
+
+        logger.info("Application submitted successfully: {}", application.getApplicationCode());
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Save a university admission application without necessarily finishing the
+     * workflow intake. Same create-or-update logic as {@link #submitApplication},
+     * safe to call repeatedly for the same application (subsequent calls must pass
+     * back {@code request.applicationId} from the previous response).
+     *
+     * @param request the application submission request with validated data
+     * @return ResponseEntity containing the application number and success message
+     */
+    @PostMapping("/save")
+    @PreAuthorize("hasRole('EXTERNAL_USER')")
+    public ResponseEntity<ApplicationSubmissionResponse> saveApplication(
+            @Valid @RequestBody ApplicationSubmissionRequest request) {
+
+        logger.info("Received application save request: {}", request);
+
+        Application application = processApplicationAndStartWorkflow(request);
+
+        ApplicationSubmissionResponse response = new ApplicationSubmissionResponse(
+            application.getId(),
+            application.getApplicationCode(),
+            "Application saved successfully"
+        );
+
+        logger.info("Application saved successfully: {}", application.getApplicationCode());
+
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+    /**
+     * Shared by {@link #submitApplication} and {@link #saveApplication}: persists the
+     * application (insert or update), then starts the jBPM process only if one hasn't
+     * already been started for it.
+     */
+    private Application processApplicationAndStartWorkflow(ApplicationSubmissionRequest request) {
         try {
             // Get authenticated user ID
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             String userId = "anonymous";
-            
+
             if (authentication != null && authentication.getPrincipal() instanceof JwtAuthenticationFilter.UserPrincipal) {
                 JwtAuthenticationFilter.UserPrincipal userPrincipal = (JwtAuthenticationFilter.UserPrincipal) authentication.getPrincipal();
                 userId = userPrincipal.getUserId().toString();
-                logger.info("Processing application submission for user: {} ({})", userPrincipal.getEmail(), userId);
+                logger.info("Processing application request for user: {} ({})", userPrincipal.getEmail(), userId);
             }
 
-            // Process the application submission
-            Application createdApplication = applicationSubmissionService.submitApplication(request, userId);
+            // Process the application create/update
+            Application application = applicationSubmissionService.submitApplication(request, userId);
 
-            Map<String, Object> processVars = new HashMap<>();
-            //processVars.put(Constants.DOMAIN_PERMIT_STATUS, Constants.CD_PERMIT_STATUS_PRE_APP_NOT_SUBMITTED);
-            startProcess(ProcessInfo.NEW_SRP_APPLICATION, true, createdApplication, 
-                userId, processVars);
+            // Only start a new process if one isn't already associated with this application
+            // (RAP.WORKFLOW_APP_ASSOC, written by the processes module's ProcessEventListener)
+            Long existingProcessInstanceId = applicationSubmissionService.findAssociatedProcessInstanceId(application.getId());
+            if (existingProcessInstanceId == null) {
+                Map<String, Object> processVars = new HashMap<>();
+                processVars.put(Constants.DOMAIN_APPLICATION_STATUS, Constants.CD_APPLICATION_STATUS_PENDING);
+                startProcess(ProcessInfo.NEW_SRP_APPLICATION, true, application, userId, processVars);
+            } else {
+                logger.info("Process already associated with application {} (processInstanceId={}), skipping",
+                    application.getApplicationCode(), existingProcessInstanceId);
+            }
 
-            // Create success response
-            ApplicationSubmissionResponse response = new ApplicationSubmissionResponse(
-                createdApplication.getId(),
-                createdApplication.getApplicationCode(),
-                "Application submitted successfully"
-            );
-
-            logger.info("Application submitted successfully: {}", createdApplication.getApplicationCode());
-            
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+            return application;
 
         } catch (IllegalArgumentException e) {
             logger.error("Invalid application data: {}", e.getMessage());
             throw new IllegalArgumentException(e.getMessage());
-            
+
         } catch (Exception e) {
-            logger.error("Error submitting application", e);
-            throw new RuntimeException("Failed to submit application: " + e.getMessage());
+            logger.error("Error processing application", e);
+            throw new RuntimeException("Failed to process application: " + e.getMessage());
         }
     }
 

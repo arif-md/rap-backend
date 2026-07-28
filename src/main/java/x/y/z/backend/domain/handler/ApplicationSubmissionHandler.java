@@ -8,6 +8,7 @@ import x.y.z.backend.domain.model.Application;
 import x.y.z.backend.domain.model.University;
 import x.y.z.backend.repository.mapper.ApplicationMapper;
 import x.y.z.backend.repository.mapper.UniversityMapper;
+import x.y.z.backend.repository.mapper.WorkflowAppAssocMapper;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -23,25 +24,47 @@ public class ApplicationSubmissionHandler {
 
     private final ApplicationMapper applicationMapper;
     private final UniversityMapper universityMapper;
+    private final WorkflowAppAssocMapper workflowAppAssocMapper;
 
-    public ApplicationSubmissionHandler(ApplicationMapper applicationMapper, UniversityMapper universityMapper) {
+    public ApplicationSubmissionHandler(ApplicationMapper applicationMapper, UniversityMapper universityMapper,
+            WorkflowAppAssocMapper workflowAppAssocMapper) {
         this.applicationMapper = applicationMapper;
         this.universityMapper = universityMapper;
+        this.workflowAppAssocMapper = workflowAppAssocMapper;
     }
 
     /**
-     * Create and persist an Application from the submission request.
-     * 
+     * Find the process instance already associated with an application via
+     * RAP.WORKFLOW_APP_ASSOC (written by the processes module's ProcessEventListener
+     * when a process starts), or null if none has been started yet.
+     */
+    public Long findActiveProcessInstanceId(Long applicationId) {
+        return workflowAppAssocMapper.findActiveProcessInstanceId(applicationId);
+    }
+
+    /**
+     * Create or update an Application from the submission/save request.
+     * A null {@code request.getApplicationId()} creates a new application; a
+     * non-null id updates the existing application in place.
+     *
      * @param request the application submission request
      * @param username the authenticated username
-     * @return the created Application with generated ID and code
+     * @return the created or updated Application, reflecting current DB state
+     *         (including any previously started process instance id)
      */
-    public Application createApplicationFromRequest(ApplicationSubmissionRequest request, String username) {
+    public Application saveApplicationFromRequest(ApplicationSubmissionRequest request, String username) {
+        if (request.getApplicationId() != null) {
+            return updateApplicationFromRequest(request, username);
+        }
+        return createApplicationFromRequest(request, username);
+    }
+
+    private Application createApplicationFromRequest(ApplicationSubmissionRequest request, String username) {
         logger.info("Creating application from request for user: {}", username);
 
         // Create Application entity
         Application application = new Application();
-        
+
         // Map fields from request
         application.setApplicationName(request.getApplicationName());
         application.setApplicationCode(generateApplicationCode());
@@ -53,15 +76,7 @@ public class ApplicationSubmissionHandler {
         application.setUpdatedBy(username);
 
         // Look up university by name and set university_id
-        if (request.getUniversity() != null && !request.getUniversity().isEmpty()) {
-            University university = universityMapper.findByName(request.getUniversity());
-            if (university != null) {
-                application.setUniversityId(university.getId());
-                logger.info("Resolved university '{}' to ID: {}", request.getUniversity(), university.getId());
-            } else {
-                logger.warn("University not found by name: '{}'", request.getUniversity());
-            }
-        }
+        resolveUniversity(application, request.getUniversity());
 
         // Insert into database using MyBatis
         int rowsInserted = applicationMapper.insert(application);
@@ -71,8 +86,46 @@ public class ApplicationSubmissionHandler {
         }
 
         logger.info("Application inserted successfully with code: {}", application.getApplicationCode());
-        
+
         return application;
+    }
+
+    private Application updateApplicationFromRequest(ApplicationSubmissionRequest request, String username) {
+        logger.info("Updating application {} from request for user: {}", request.getApplicationId(), username);
+
+        Application application = applicationMapper.findById(request.getApplicationId());
+        if (application == null) {
+            throw new IllegalArgumentException("Application not found for id: " + request.getApplicationId());
+        }
+
+        application.setApplicationName(request.getApplicationName());
+        application.setDescription(buildDescription(request));
+        application.setOwnerName(request.getFirstName() + " " + request.getLastName());
+        application.setOwnerEmail(request.getEmail());
+        application.setUpdatedBy(username);
+
+        resolveUniversity(application, request.getUniversity());
+
+        int rowsUpdated = applicationMapper.updateSubmission(application);
+        if (rowsUpdated == 0) {
+            throw new RuntimeException("Failed to update application in database");
+        }
+
+        logger.info("Application updated successfully with code: {}", application.getApplicationCode());
+
+        return application;
+    }
+
+    private void resolveUniversity(Application application, String universityName) {
+        if (universityName != null && !universityName.isEmpty()) {
+            University university = universityMapper.findByName(universityName);
+            if (university != null) {
+                application.setUniversityId(university.getId());
+                logger.info("Resolved university '{}' to ID: {}", universityName, university.getId());
+            } else {
+                logger.warn("University not found by name: '{}'", universityName);
+            }
+        }
     }
 
     /**

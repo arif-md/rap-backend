@@ -11,4 +11,8 @@ public interface Constants {
     public static final String APPLICANT_ID = "applicantId";
     public static final String APPLICATION_ID = "applicationId";
 
+    public static final String DOMAIN_APPLICATION_STATUS = "APPLICATION_STATUS_CD";
+
+    public static final String CD_APPLICATION_STATUS_PENDING = "PENDING_SUBMIT";
+
 }

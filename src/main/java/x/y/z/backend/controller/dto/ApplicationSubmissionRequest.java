@@ -10,6 +10,11 @@ import jakarta.validation.constraints.Size;
  */
 public class ApplicationSubmissionRequest {
 
+    /**
+     * Id of a previously saved application to update. Null means create a new application.
+     */
+    private Long applicationId;
+
     @NotBlank(message = "Application name is required")
     @Size(min = 3, max = 200, message = "Application name must be between 3 and 200 characters")
     private String applicationName;
@@ -44,6 +49,14 @@ public class ApplicationSubmissionRequest {
     }
 
     // Getters and Setters
+    public Long getApplicationId() {
+        return applicationId;
+    }
+
+    public void setApplicationId(Long applicationId) {
+        this.applicationId = applicationId;
+    }
+
     public String getApplicationName() {
         return applicationName;
     }
@@ -111,7 +124,8 @@ public class ApplicationSubmissionRequest {
     @Override
     public String toString() {
         return "ApplicationSubmissionRequest{" +
-                "applicationName='" + applicationName + '\'' +
+                "applicationId=" + applicationId +
+                ", applicationName='" + applicationName + '\'' +
                 ", university='" + university + '\'' +
                 ", firstName='" + firstName + '\'' +
                 ", lastName='" + lastName + '\'' +

@@ -26,6 +26,12 @@ public interface ApplicationMapper {
     int update(Application application);
 
     /**
+     * Update an existing application record from the submission/save flow
+     * (also updates university_id, unlike the generic update above).
+     */
+    int updateSubmission(Application application);
+
+    /**
      * Delete an application by ID
      */
     int deleteById(@Param("id") Long id);
