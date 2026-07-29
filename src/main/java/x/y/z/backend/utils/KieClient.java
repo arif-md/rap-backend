@@ -10,7 +10,14 @@ import org.kie.server.client.UserTaskServicesClient;
 import org.kie.server.client.admin.ProcessAdminServicesClient;
 import org.kie.server.client.admin.UserTaskAdminServicesClient;
 import org.kie.server.client.impl.AbstractKieServicesClientImpl;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -147,6 +154,28 @@ public class KieClient {
 		return documentServicesClient;
 	}
 			
+	/**
+	 * Fetch the process instance diagram (SVG, active nodes highlighted) from the KIE
+	 * Server REST API. Not exposed by the typed kie-server-client interfaces
+	 * (ProcessServicesClient etc.), so this calls the "Process images" resource
+	 * (org.kie.server.remote.rest.jbpm.ui.ImageResource, kie-server-rest-jbpm-ui) directly:
+	 * GET {kieServerURL}/containers/{containerId}/images/processes/instances/{processInstanceId}
+	 * No processId path segment - the running instance already identifies its process.
+	 */
+	public static byte[] getProcessInstanceImageSvg(String containerId, Long processInstanceId) {
+		String url = String.format("%s/containers/%s/images/processes/instances/%s",
+				kieServerURL, containerId, processInstanceId);
+
+		HttpHeaders headers = new HttpHeaders();
+		headers.setBasicAuth(kieServerUser, kieServerPassword);
+		headers.setAccept(Arrays.asList(MediaType.valueOf("image/svg+xml"), MediaType.ALL));
+
+		RestTemplate restTemplate = new RestTemplate();
+		ResponseEntity<byte[]> response = restTemplate.exchange(
+				url, HttpMethod.GET, new HttpEntity<Void>(headers), byte[].class);
+		return response.getBody();
+	}
+
 	public static void setKieServerURL(String kieServerURL) {
 		KieClient.kieServerURL = kieServerURL;
 	}

@@ -89,6 +89,25 @@ public interface ApplicationMapper {
      */
     long countByUser(@Param("userEmail") String userEmail);
 
+    /**
+     * Find ACCEPTED applications by user email with pagination (backs the "My Permits" tab:
+     * an application becomes a permit once its latest workflow status is ACCEPTED).
+     * @param userEmail The user's email address
+     * @param offset The starting record index
+     * @param limit The maximum number of records to return
+     */
+    List<Application> findAcceptedByUserPaginated(
+        @Param("userEmail") String userEmail,
+        @Param("offset") int offset,
+        @Param("limit") int limit
+    );
+
+    /**
+     * Count ACCEPTED applications for a specific user
+     * @param userEmail The user's email address
+     */
+    long countAcceptedByUser(@Param("userEmail") String userEmail);
+
     List<Application> findByUniversityPaginated(
         @Param("universityId") Long universityId,
         @Param("offset") int offset,

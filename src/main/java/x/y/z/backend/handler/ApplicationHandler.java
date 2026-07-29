@@ -3,7 +3,9 @@ package x.y.z.backend.handler;
 import org.springframework.stereotype.Component;
 import x.y.z.backend.domain.dto.PageResponse;
 import x.y.z.backend.domain.model.Application;
+import x.y.z.backend.domain.model.ProcessInstanceInfo;
 import x.y.z.backend.repository.mapper.ApplicationMapper;
+import x.y.z.backend.repository.mapper.WorkflowAppAssocMapper;
 
 import java.util.List;
 
@@ -11,16 +13,18 @@ import java.util.List;
  * ApplicationHandler - Handles CRUD operations and data access logic.
  * This handler encapsulates data access operations and calls MyBatis mappers.
  * Business logic should be in the Service layer, not here.
- * 
+ *
  * Pattern: REST Controller → Service (Business Logic + @Transactional) → Handler (Data Access) → MyBatis Mapper
  */
 @Component
 public class ApplicationHandler {
 
     private final ApplicationMapper applicationMapper;
+    private final WorkflowAppAssocMapper workflowAppAssocMapper;
 
-    public ApplicationHandler(ApplicationMapper applicationMapper) {
+    public ApplicationHandler(ApplicationMapper applicationMapper, WorkflowAppAssocMapper workflowAppAssocMapper) {
         this.applicationMapper = applicationMapper;
+        this.workflowAppAssocMapper = workflowAppAssocMapper;
     }
 
     /**
@@ -127,5 +131,25 @@ public class ApplicationHandler {
         List<Application> applications = applicationMapper.findByUniversityPaginated(universityId, offset, size);
         long totalElements = applicationMapper.countByUniversity(universityId);
         return new PageResponse<>(applications, page, size, totalElements);
+    }
+
+    /**
+     * Find ACCEPTED applications by user email with pagination ("My Permits" tab).
+     */
+    public PageResponse<Application> findAcceptedByUserPaginated(String userEmail, int page, int size) {
+        int offset = page * size;
+        List<Application> applications = applicationMapper.findAcceptedByUserPaginated(userEmail, offset, size);
+        long totalElements = applicationMapper.countAcceptedByUser(userEmail);
+
+        return new PageResponse<>(applications, page, size, totalElements);
+    }
+
+    /**
+     * Find the container/process id actually used for the application's most recently
+     * started process instance (resolved via JBPM.PROCESSINSTANCELOG, correct even when
+     * multiple container versions are deployed), or null if none has been started yet.
+     */
+    public ProcessInstanceInfo findActiveProcessInstanceInfo(Long applicationId) {
+        return workflowAppAssocMapper.findActiveProcessInstanceInfo(applicationId);
     }
 }

@@ -3,6 +3,7 @@ package x.y.z.backend.repository.mapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.stereotype.Repository;
+import x.y.z.backend.domain.model.ProcessInstanceInfo;
 
 /**
  * MyBatis Mapper interface for RAP.WORKFLOW_APP_ASSOC, the association between an
@@ -26,4 +27,11 @@ public interface WorkflowAppAssocMapper {
      * flow (e.g. seed/test data).
      */
     Long findApplicationIdByProcessInstanceId(@Param("processInstanceId") Long processInstanceId);
+
+    /**
+     * The container/process id actually used for the application's most recently started
+     * process instance, resolved via JBPM.PROCESSINSTANCELOG, or null if no instance has
+     * been started (or its log row hasn't landed yet).
+     */
+    ProcessInstanceInfo findActiveProcessInstanceInfo(@Param("applicationId") Long applicationId);
 }

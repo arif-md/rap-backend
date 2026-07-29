@@ -1,11 +1,14 @@
 package x.y.z.backend.service;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import x.y.z.backend.domain.dto.PageResponse;
 import x.y.z.backend.domain.model.Application;
+import x.y.z.backend.domain.model.ProcessInstanceInfo;
 import x.y.z.backend.exception.ResourceNotFoundException;
 import x.y.z.backend.handler.ApplicationHandler;
+import x.y.z.backend.utils.KieClient;
 
 import java.util.List;
 
@@ -191,6 +194,58 @@ public class ApplicationService {
         }
         
         return applicationHandler.findByUserPaginated(userEmail, page, size);
+    }
+
+    /**
+     * Get ACCEPTED applications for a specific user with pagination ("My Permits" tab:
+     * an application becomes a permit once its latest workflow status is ACCEPTED).
+     * @param userEmail The user's email address
+     * @param page The page number (0-indexed)
+     * @param size The number of items per page
+     * @return PageResponse containing accepted applications and pagination metadata
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<Application> getAcceptedApplicationsByUser(String userEmail, int page, int size) {
+        if (page < 0) {
+            throw new IllegalArgumentException("Page number cannot be negative");
+        }
+        if (size <= 0 || size > 100) {
+            throw new IllegalArgumentException("Page size must be between 1 and 100");
+        }
+        if (userEmail == null || userEmail.trim().isEmpty()) {
+            throw new IllegalArgumentException("User email is required");
+        }
+
+        return applicationHandler.findAcceptedByUserPaginated(userEmail, page, size);
+    }
+
+    /**
+     * Get the process instance diagram (SVG, active nodes highlighted) for an
+     * application's workflow, for the "View Status" dashboard action.
+     * BUSINESS LOGIC: Only the application's owner may view its process status.
+     * @param applicationId The application id
+     * @param requesterEmail The authenticated caller's email, checked against the application owner
+     * @return the SVG image bytes returned by the jBPM process service
+     */
+    @Transactional(readOnly = true)
+    public byte[] getProcessStatusImage(Long applicationId, String requesterEmail) {
+        Application application = applicationHandler.findById(applicationId);
+        if (application == null) {
+            throw new ResourceNotFoundException("Application", applicationId);
+        }
+        if (application.getOwnerEmail() == null || !application.getOwnerEmail().equalsIgnoreCase(requesterEmail)) {
+            throw new AccessDeniedException("You do not have access to this application's process status");
+        }
+
+        ProcessInstanceInfo processInstanceInfo = applicationHandler.findActiveProcessInstanceInfo(applicationId);
+        if (processInstanceInfo == null) {
+            throw new ResourceNotFoundException("No process instance has been started for application " + applicationId);
+        }
+
+        return KieClient.getProcessInstanceImageSvg(
+            processInstanceInfo.getContainerId(),
+            processInstanceInfo.getProcessInstanceId()
+        );
     }
 
     /**

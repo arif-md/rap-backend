@@ -3,22 +3,28 @@ package x.y.z.backend.controller;
 import jakarta.validation.constraints.Min;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import x.y.z.backend.config.CurrentUser;
 import x.y.z.backend.domain.dto.PageResponse;
+import x.y.z.backend.domain.model.Application;
 import x.y.z.backend.domain.model.Permit;
+import x.y.z.backend.dto.ApplicationResponse;
+import x.y.z.backend.mapper.ApplicationDtoMapper;
+import x.y.z.backend.service.ApplicationService;
 import x.y.z.backend.service.PermitService;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * REST Controller for Permit operations.
- * 
+ *
  * Responsibilities:
  * - HTTP request/response handling
  * - Request validation
  * - Extracting authenticated user from security context
  * - Returning appropriate HTTP status codes
- * 
+ *
  * Does NOT contain:
  * - Business logic (in Service layer)
  * - Data access (in Handler layer)
@@ -29,28 +35,44 @@ import x.y.z.backend.service.PermitService;
 public class PermitController {
 
     private final PermitService permitService;
+    private final ApplicationService applicationService;
+    private final ApplicationDtoMapper dtoMapper;
 
-    public PermitController(PermitService permitService) {
+    public PermitController(PermitService permitService, ApplicationService applicationService,
+            ApplicationDtoMapper dtoMapper) {
         this.permitService = permitService;
+        this.applicationService = applicationService;
+        this.dtoMapper = dtoMapper;
     }
 
     /**
      * Get permits for the current user with pagination.
+     * An application becomes a permit once its latest workflow status is ACCEPTED,
+     * so this is backed by RAP.APPLICATION rather than RAP.permit - see ApplicationService.
      * GET /api/permits/my?page=0&size=10
      */
     @GetMapping("/my")
     @PreAuthorize("hasRole('EXTERNAL_USER')")
-    public ResponseEntity<PageResponse<Permit>> getMyPermits(
+    public ResponseEntity<PageResponse<ApplicationResponse>> getMyPermits(
             @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
-            @RequestParam(name = "size", defaultValue = "10") @Min(1) int size) {
-        
-        // Extract current user from security context
-        String currentUser = getCurrentUsername();
-        
-        // Delegate to service
-        PageResponse<Permit> permitPage = permitService.getPermitsByUser(currentUser, page, size);
-        
-        return ResponseEntity.ok(permitPage);
+            @RequestParam(name = "size", defaultValue = "10") @Min(1) int size,
+            CurrentUser user) {
+
+        PageResponse<Application> applicationPage =
+            applicationService.getAcceptedApplicationsByUser(user.getEmail(), page, size);
+
+        List<ApplicationResponse> content = applicationPage.getContent().stream()
+            .map(dtoMapper::toDto)
+            .collect(Collectors.toList());
+
+        PageResponse<ApplicationResponse> response = new PageResponse<>(
+            content,
+            applicationPage.getPage(),
+            applicationPage.getSize(),
+            applicationPage.getTotalElements()
+        );
+
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -89,28 +111,5 @@ public class PermitController {
             @RequestParam(name = "size", defaultValue = "10") @Min(1) int size) {
         PageResponse<Permit> permitPage = permitService.getPermitsByUniversity(universityId, page, size);
         return ResponseEntity.ok(permitPage);
-    }
-
-    /**
-     * Extract current username from Spring Security context.
-     * Returns "anonymous" if not authenticated (for testing with security disabled).
-     */
-    private String getCurrentUsername() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        
-        if (authentication != null && authentication.isAuthenticated() 
-            && !"anonymousUser".equals(authentication.getPrincipal())) {
-            Object principal = authentication.getPrincipal();
-            
-            // Handle UserPrincipal from JWT authentication
-            if (principal instanceof x.y.z.backend.security.JwtAuthenticationFilter.UserPrincipal) {
-                return ((x.y.z.backend.security.JwtAuthenticationFilter.UserPrincipal) principal).getEmail();
-            }
-            
-            // Fallback to getName() for other authentication types (OIDC, etc.)
-            return authentication.getName();
-        }
-        
-        return "anonymous";
     }
 }

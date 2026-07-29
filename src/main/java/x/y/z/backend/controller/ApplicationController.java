@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Min;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -245,6 +246,20 @@ public class ApplicationController {
         );
         
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get the process instance status diagram (SVG) for an application's workflow.
+     * GET /api/applications/{id}/status-image
+     */
+    @GetMapping("/{id}/status-image")
+    @PreAuthorize("hasRole('EXTERNAL_USER')")
+    public ResponseEntity<byte[]> getApplicationStatusImage(@PathVariable @Min(1) Long id, CurrentUser user) {
+        byte[] svg = applicationService.getProcessStatusImage(id, user.getEmail());
+
+        return ResponseEntity.ok()
+            .contentType(MediaType.valueOf("image/svg+xml"))
+            .body(svg);
     }
 
     @GetMapping("/university/{universityId}")

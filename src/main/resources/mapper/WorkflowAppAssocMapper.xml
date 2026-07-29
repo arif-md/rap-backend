@@ -21,4 +21,25 @@
         ORDER BY WAA.CREATE_DT DESC
     </select>
 
+    <resultMap id="ProcessInstanceInfoResultMap" type="x.y.z.backend.domain.model.ProcessInstanceInfo">
+        <result property="processInstanceId" column="PROCESSINSTANCEID"/>
+        <result property="containerId" column="CONTAINERID"/>
+        <result property="processId" column="PROCESSID"/>
+    </resultMap>
+
+    <!-- The container/process id actually used for the application's most recent process
+         instance, resolved via JBPM.PROCESSINSTANCELOG (populated by the KIE engine itself
+         from the running instance) rather than the static ProcessInfo containerAlias, so the
+         correct container version is returned even when multiple versions are deployed. -->
+    <select id="findActiveProcessInstanceInfo" resultMap="ProcessInstanceInfoResultMap">
+        SELECT TOP 1
+            WAA.PROCESSINSTANCEID AS PROCESSINSTANCEID,
+            PIL.EXTERNALID AS CONTAINERID,
+            PIL.PROCESSID AS PROCESSID
+        FROM RAP.WORKFLOW_APP_ASSOC WAA
+        INNER JOIN JBPM.PROCESSINSTANCELOG PIL ON PIL.PROCESSINSTANCEID = WAA.PROCESSINSTANCEID
+        WHERE WAA.APP_ID = #{applicationId} AND WAA.DELETE_YN = 'N'
+        ORDER BY WAA.CREATE_DT DESC
+    </select>
+
 </mapper>
