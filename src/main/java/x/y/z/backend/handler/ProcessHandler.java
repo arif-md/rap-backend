@@ -100,11 +100,12 @@ public class ProcessHandler {
      * @param size The number of items per page
      * @return PageResponse containing tasks and pagination metadata
      */
-    public PageResponse<Task> findByUserPaginated(String assignedTo, int page, int size) {
+    //TODO : un-used method, consider removing if not needed.
+    /*public PageResponse<Task> findByUserPaginated(String assignedTo, int page, int size) {
         int offset = page * size;
         List<Task> tasks = processMapper.findByUserPaginated(assignedTo, offset, size);
         long totalElements = processMapper.countByUser(assignedTo);
         
         return new PageResponse<>(tasks, page, size, totalElements);
-    }
+    }*/
 }

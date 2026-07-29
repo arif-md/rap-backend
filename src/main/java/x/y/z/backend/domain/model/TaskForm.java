@@ -8,9 +8,11 @@ public class TaskForm extends Task {
 
     protected String formType;
     private Boolean isUpdated;
-    //@Min(1)
-    //private Integer applicationId;
     protected Long id;
+
+    // RAP.application.id linked to this task's process instance via RAP.WORKFLOW_APP_ASSOC,
+    // or null if no application is associated (e.g. a process started outside the submission flow).
+    private Long applicationId;
 
     protected Long universityId;
 
@@ -58,6 +60,14 @@ public class TaskForm extends Task {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getApplicationId() {
+        return applicationId;
+    }
+
+    public void setApplicationId(Long applicationId) {
+        this.applicationId = applicationId;
     }
 
     public Long getUniversityId() {

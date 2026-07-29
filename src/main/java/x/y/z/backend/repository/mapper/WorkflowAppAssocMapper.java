@@ -19,4 +19,11 @@ public interface WorkflowAppAssocMapper {
      * id for an application, or null if none has been started yet.
      */
     Long findActiveProcessInstanceId(@Param("applicationId") Long applicationId);
+
+    /**
+     * Reverse lookup: find the application id associated with a jBPM process instance,
+     * or null if this process instance wasn't started through the application submission
+     * flow (e.g. seed/test data).
+     */
+    Long findApplicationIdByProcessInstanceId(@Param("processInstanceId") Long processInstanceId);
 }

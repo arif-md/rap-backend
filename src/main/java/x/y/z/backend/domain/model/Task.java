@@ -20,6 +20,12 @@ public class Task implements Serializable {
     //If we have different versions of a process the container will be different for each version.
     private String containerId;
 
+    private String processName;
+    // Task Name (short name) in process server.
+    private String name; 
+    // To whom the task is assigned to.
+    private String assigneeId;
+    private String assignee;
     private String function;
     private String task;
     private String applicationNumber;
@@ -76,6 +82,30 @@ public class Task implements Serializable {
     }
     public void setContainerId(String containerId) {
         this.containerId = containerId;
+    }
+    public String getProcessName() {
+        return processName;
+    }
+    public void setProcessName(String processName) {
+        this.processName = processName;
+    }
+    public String getName() {
+        return name;
+    }
+    public void setName(String name) {
+        this.name = name;
+    }
+    public String getAssigneeId() {
+        return assigneeId;
+    }
+    public void setAssigneeId(String assigneeId) {
+        this.assigneeId = assigneeId;
+    }
+    public String getAssignee() {
+        return assignee;
+    }
+    public void setAssignee(String assignee) {
+        this.assignee = assignee;
     }
     public String getFunction() {
         return function;

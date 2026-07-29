@@ -13,4 +13,12 @@
         ORDER BY WAA.CREATE_DT DESC
     </select>
 
+    <!-- Reverse lookup: application id for a jBPM process instance, if one was recorded -->
+    <select id="findApplicationIdByProcessInstanceId" resultType="long">
+        SELECT TOP 1 WAA.APP_ID
+        FROM RAP.WORKFLOW_APP_ASSOC WAA
+        WHERE WAA.PROCESSINSTANCEID = #{processInstanceId} AND WAA.DELETE_YN = 'N'
+        ORDER BY WAA.CREATE_DT DESC
+    </select>
+
 </mapper>

@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.*;
 import x.y.z.backend.config.CurrentUser;
 import x.y.z.backend.domain.dto.PageResponse;
 import x.y.z.backend.domain.model.Task;
+import x.y.z.backend.domain.model.TaskForm;
+import x.y.z.backend.service.DashboardTaskService;
 import x.y.z.backend.service.ProcessService;
 
 /**
@@ -30,16 +32,18 @@ import x.y.z.backend.service.ProcessService;
 public class WorkflowController {
 
     private final ProcessService processService;
+    private final DashboardTaskService dashboardTaskService;
 
-    public WorkflowController(ProcessService processService) {
+    public WorkflowController(ProcessService processService, DashboardTaskService dashboardTaskService) {
         this.processService = processService;
+        this.dashboardTaskService = dashboardTaskService;
     }
 
     /**
      * Get tasks assigned to the current user with pagination.
      * GET /api/workflow/tasks?page=0&size=10
      */
-    @GetMapping("/tasks")
+    /*@GetMapping("/tasks")
     public ResponseEntity<PageResponse<Task>> getMyTasks(
             @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
             @RequestParam(name = "size", defaultValue = "10") @Min(1) int size,
@@ -52,6 +56,38 @@ public class WorkflowController {
         PageResponse<Task> taskPage = processService.getTasksByUser(currentUser, page, size);
         
         return ResponseEntity.ok(taskPage);
+    }*/
+
+    /**
+     * Paginated list of the current user's in-progress jBPM tasks, for the dashboard's
+     * "Action Needed" tab.
+     * GET /api/workflow/myActiveTasks?page=0&size=10
+     */
+    @GetMapping("/myActiveTasks")
+    public ResponseEntity<PageResponse<TaskForm>> myActiveTasks(
+            CurrentUser currentUser,
+            @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
+            @RequestParam(name = "size", defaultValue = "10") @Min(1) int size) {
+
+        PageResponse<TaskForm> result = dashboardTaskService.getMyActiveTasks(currentUser.getUserId(), page, size);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Complete a jBPM task from the dashboard's "Action Needed" tab, on behalf of the
+     * logged-in user.
+     * POST /api/workflow/myActiveTasks/{taskId}/complete?containerId=...
+     */
+    @PostMapping("/myActiveTasks/{taskId}/complete")
+    public ResponseEntity<Void> completeActiveTask(
+            @PathVariable @Min(1) Long taskId,
+            @RequestParam("containerId") String containerId,
+            CurrentUser currentUser) {
+        if (containerId == null || containerId.isBlank()) {
+            throw new IllegalArgumentException("containerId is required");
+        }
+        dashboardTaskService.completeTask(containerId, taskId, currentUser.getUserId());
+        return ResponseEntity.noContent().build();
     }
 
     /**

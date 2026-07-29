@@ -117,6 +117,7 @@
     </select>
 
     <!-- Find Tasks by User with Pagination -->
+    <!--
     <select id="findByUserPaginated" resultMap="TaskResultMap">
         SELECT 
             id,
@@ -139,14 +140,17 @@
         OFFSET #{offset} ROWS
         FETCH NEXT #{limit} ROWS ONLY
     </select>
+    -->
 
     <!-- Count Tasks by User -->
+    <!--
     <select id="countByUser" resultType="long">
         SELECT COUNT(*) 
         FROM RAP.task
         WHERE assigned_to = #{assignedTo}
     </select>
-
+    -->
+    
     <!-- Find Tasks by Status -->
     <select id="findByStatus" resultMap="TaskResultMap">
         SELECT 

@@ -82,20 +82,22 @@
     <!-- Find Application by ID -->
     <select id="findById" resultMap="ApplicationResultMap">
         SELECT
-            id,
-            application_name,
-            application_code,
-            description,
-            status,
-            owner_name,
-            owner_email,
-            university_id,
-            created_at,
-            created_by,
-            updated_at,
-            updated_by
-        FROM RAP.application
-        WHERE id = #{id}
+            a.id,
+            a.application_name,
+            a.application_code,
+            a.description,
+            a.status,
+            a.owner_name,
+            a.owner_email,
+            a.university_id,
+            u.university_name,
+            a.created_at,
+            a.created_by,
+            a.updated_at,
+            a.updated_by
+        FROM RAP.application a
+        LEFT JOIN RAP.university u ON a.university_id = u.id
+        WHERE a.id = #{id}
     </select>
 
     <!-- Find Application by Code -->

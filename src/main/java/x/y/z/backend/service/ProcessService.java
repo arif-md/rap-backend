@@ -148,7 +148,7 @@ public class ProcessService {
      * @param size The number of items per page
      * @return PageResponse containing tasks and pagination metadata
      */
-    @Transactional(readOnly = true)
+    /* @Transactional(readOnly = true)
     public PageResponse<Task> getTasksByUser(String assignedTo, int page, int size) {
         // Business Rule: Validate pagination parameters
         if (page < 0) {
@@ -169,7 +169,7 @@ public class ProcessService {
         
         // Query tasks by user ID (convert UUID to string for MyBatis)
         return processHandler.findByUserPaginated(user.getId().toString(), page, size);
-    }
+    }*/
 
     // =========================================================================
     // BUSINESS LOGIC HELPER METHODS

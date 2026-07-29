@@ -46,17 +46,17 @@ public interface ProcessMapper {
      * @param offset The starting record index
      * @param limit The maximum number of records to return
      */
-    List<Task> findByUserPaginated(
+    /*List<Task> findByUserPaginated(
         @Param("assignedTo") String assignedTo,
         @Param("offset") int offset,
         @Param("limit") int limit
-    );
+    );*/
 
     /**
      * Count total tasks assigned to a specific user
      * @param assignedTo The user email address
      */
-    long countByUser(@Param("assignedTo") String assignedTo);
+    //long countByUser(@Param("assignedTo") String assignedTo);
 
     /**
      * Find tasks by status

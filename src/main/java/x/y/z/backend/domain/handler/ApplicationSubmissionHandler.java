@@ -43,6 +43,14 @@ public class ApplicationSubmissionHandler {
     }
 
     /**
+     * Reverse lookup: the application id associated with a jBPM process instance,
+     * or null if this process instance wasn't started through the submission flow.
+     */
+    public Long findApplicationIdByProcessInstanceId(Long processInstanceId) {
+        return workflowAppAssocMapper.findApplicationIdByProcessInstanceId(processInstanceId);
+    }
+
+    /**
      * Create or update an Application from the submission/save request.
      * A null {@code request.getApplicationId()} creates a new application; a
      * non-null id updates the existing application in place.
