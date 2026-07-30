@@ -222,18 +222,22 @@ public class ApplicationService {
     /**
      * Get the process instance diagram (SVG, active nodes highlighted) for an
      * application's workflow, for the "View Status" dashboard action.
-     * BUSINESS LOGIC: Only the application's owner may view its process status.
+     * BUSINESS LOGIC: The application's owner may always view its process status;
+     * internal/admin staff may view the status of any application (same trust model
+     * as getApplicationsByUniversity - no per-university scoping is enforced here either).
      * @param applicationId The application id
      * @param requesterEmail The authenticated caller's email, checked against the application owner
+     * @param callerIsInternalOrAdmin Whether the caller holds INTERNAL_USER or ADMIN, bypassing the owner check
      * @return the SVG image bytes returned by the jBPM process service
      */
     @Transactional(readOnly = true)
-    public byte[] getProcessStatusImage(Long applicationId, String requesterEmail) {
+    public byte[] getProcessStatusImage(Long applicationId, String requesterEmail, boolean callerIsInternalOrAdmin) {
         Application application = applicationHandler.findById(applicationId);
         if (application == null) {
             throw new ResourceNotFoundException("Application", applicationId);
         }
-        if (application.getOwnerEmail() == null || !application.getOwnerEmail().equalsIgnoreCase(requesterEmail)) {
+        boolean isOwner = application.getOwnerEmail() != null && application.getOwnerEmail().equalsIgnoreCase(requesterEmail);
+        if (!isOwner && !callerIsInternalOrAdmin) {
             throw new AccessDeniedException("You do not have access to this application's process status");
         }
 

@@ -20,6 +20,7 @@ import x.y.z.backend.dto.ApplicationResponse;
 import x.y.z.backend.dto.CreateApplicationRequest;
 import x.y.z.backend.dto.UpdateApplicationRequest;
 import x.y.z.backend.mapper.ApplicationDtoMapper;
+import x.y.z.backend.security.JwtAuthenticationFilter;
 import x.y.z.backend.service.ApplicationService;
 
 import java.util.HashMap;
@@ -253,13 +254,27 @@ public class ApplicationController {
      * GET /api/applications/{id}/status-image
      */
     @GetMapping("/{id}/status-image")
-    @PreAuthorize("hasRole('EXTERNAL_USER')")
+    @PreAuthorize("hasRole('EXTERNAL_USER') or hasRole('INTERNAL_USER') or hasRole('ADMIN')")
     public ResponseEntity<byte[]> getApplicationStatusImage(@PathVariable @Min(1) Long id, CurrentUser user) {
-        byte[] svg = applicationService.getProcessStatusImage(id, user.getEmail());
+        byte[] svg = applicationService.getProcessStatusImage(id, user.getEmail(), isInternalOrAdmin());
 
         return ResponseEntity.ok()
             .contentType(MediaType.valueOf("image/svg+xml"))
             .body(svg);
+    }
+
+    /**
+     * Internal/admin staff aren't the application owner, so the owner-email check in
+     * ApplicationService.getProcessStatusImage() needs to know to bypass it for them
+     * (mirrors the role-based trust already used by getApplicationsByUniversity below).
+     */
+    private boolean isInternalOrAdmin() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof JwtAuthenticationFilter.UserPrincipal) {
+            List<String> roles = ((JwtAuthenticationFilter.UserPrincipal) authentication.getPrincipal()).getRoles();
+            return roles != null && (roles.contains("INTERNAL_USER") || roles.contains("ADMIN"));
+        }
+        return false;
     }
 
     @GetMapping("/university/{universityId}")

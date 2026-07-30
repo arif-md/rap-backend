@@ -27,4 +27,6 @@ public interface Constants {
     public static final int FIRST_FISCAL_MONTH  = Calendar.OCTOBER;
     public static final String OUTPUT_ACTORID = "out_actorId";
 
+    public static final String GROUP_ID_FORMAT = "%s#%s";    
+
 }

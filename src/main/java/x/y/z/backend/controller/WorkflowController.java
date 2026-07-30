@@ -1,6 +1,10 @@
 package x.y.z.backend.controller;
 
 import jakarta.validation.constraints.Min;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -70,6 +74,17 @@ public class WorkflowController {
             @RequestParam(name = "size", defaultValue = "10") @Min(1) int size) {
 
         PageResponse<TaskForm> result = dashboardTaskService.getMyActiveTasks(currentUser.getUserId(), page, size);
+        return ResponseEntity.ok(result);
+    }
+
+	@RequestMapping(value = "/myUniversityTasks", method = RequestMethod.GET, produces = "application/json")
+    public ResponseEntity<PageResponse<TaskForm>> myUniversityTasks(
+            CurrentUser currentUser,
+            @RequestParam(name = "officeid") Long officeid,
+            @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
+            @RequestParam(name = "size", defaultValue = "10") @Min(1) int size) {
+
+        PageResponse<TaskForm> result = dashboardTaskService.myUniversityTasks(officeid, page, size);
         return ResponseEntity.ok(result);
     }
 
