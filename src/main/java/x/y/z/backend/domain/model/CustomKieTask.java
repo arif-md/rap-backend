@@ -7,114 +7,46 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementWrapper;
-import javax.xml.bind.annotation.XmlRootElement;
-
-@XmlRootElement(name = "custom-task")
-@XmlAccessorType(XmlAccessType.FIELD)
 public class CustomKieTask implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @XmlElementWrapper(name = "potential-owners")
-    @XmlElement(name = "task-pot-owners")
     private List<String> potentialOwners = new ArrayList<String>();
-
-    @XmlElement(name = "task-last-modification-date")
     private Date lastModificationDate;
-
-    @XmlElement(name = "last-modification-user")
     private String lastModificationUser;
-
-    @XmlElement(name = "task-input-data")
     private Map<String,Object> inputdata;
-
-    @XmlElement(name = "task-output-data")
     private Map<String,Object> outputdata;
-
-    @XmlElement(name = "process-name")
     private String processName;
-
-    @XmlElement(name = "process-instance-desc")
     private String processInstanceDescription;
-
-    @XmlElement(name = "process-variables")
     private Map<String, Object> processVariables;
-
-    @XmlElement(name = "data")
     private Map<String, Object> data;
-
-    @XmlElement(name = "parent-process-instance-id")
     private Long parentProcessInstanceId;
-
-    @XmlElement(name = "parent-process-name")
     private String parentProcessName;
-
-    @XmlElement(name = "parent-process-correlation-key")
     private String parentProcessCorrelationKey;
-
-    @XmlElement(name = "task-id")
 	private Long taskId;
-
-    @XmlElement(name = "task-status")
 	private String status;
-
-    @XmlElement(name = "task-activation-time")
 	private Date activationTime;
-
-    @XmlElement(name = "task-name")
 	private String name;
-
-    @XmlElement(name = "task-description")
 	private String description;
-
-    @XmlElement(name = "task-priority")
 	private Integer priority;
-
-    @XmlElement(name = "task-actual-owner")
-	private String actualOwner;
-
-    @XmlElement(name = "task-created-by")
+	private String actualOwnerId;
+    private String actualOwnerEmail;
 	private String createdBy;
-
-    @XmlElement(name = "task-container-id")
 	private String deploymentId;
-
-    @XmlElement(name = "task-process-id")
 	private String processId;
-
-    @XmlElement(name = "task-process-instance-id")
 	private Long processInstanceId;
-
-    @XmlElement(name = "task-created-on")
 	private Date createdOn;
-
-    @XmlElement(name = "task-due-date")
 	private Date dueDate;
-
-    @XmlElement(name = "task-form")
 	private String formName;
-
-    @XmlElement(name = "task-workitem-id")
 	private Long workItemId;
-
-    @XmlElement(name = "sla-due-date")
 	private Date slaDueDate;
-
-    @XmlElement(name = "sla-compliance")
 	private Integer slaCompliance;
-
-    @XmlElement(name = "task-subject")
     private String subject;
-
-    @XmlElement(name = "task-correlation-key")
     private String correlationKey;
-
-    @XmlElement(name = "process-type")
     private Integer processType;
+    private String applicationNumber;
+    private String applicationName;
+    private String universityName;
 
     public CustomKieTask() {
 
@@ -122,32 +54,32 @@ public class CustomKieTask implements Serializable {
 
     public CustomKieTask(Long taskId, String status,
                                 Date activationTime, String name, String description,
-                                Integer priority, String actualOwner, String createdBy,
+                                Integer priority, String actualOwnerId, String createdBy,
                                 String deploymentId, String processId, Long processInstanceId,
                                 Date createdOn, Date dueDate) {
-        this(taskId, status, activationTime, name, description, priority, actualOwner, createdBy, deploymentId, processId, processInstanceId, createdOn, dueDate, null);
+        this(taskId, status, activationTime, name, description, priority, actualOwnerId, createdBy, deploymentId, processId, processInstanceId, createdOn, dueDate, null);
 
     }
 
 	public CustomKieTask(Long taskId, String status, Date activationTime, String name, String description,
-								Integer priority, String actualOwner, String createdBy, String deploymentId,
+								Integer priority, String actualOwnerId, String createdBy, String deploymentId,
 								String processId, Long processInstanceId, Date createdOn, Date dueDate, Long workItemId) {
-		this(taskId, status, activationTime, name, description, priority, actualOwner, createdBy, deploymentId,
+		this(taskId, status, activationTime, name, description, priority, actualOwnerId, createdBy, deploymentId,
              processId, processInstanceId, createdOn, dueDate, workItemId,null, null, null, null);
 	}
 	
 	
 	public CustomKieTask(Long taskId, String status, Date activationTime, String name, String description,
-                                Integer priority, String actualOwner, String createdBy, String deploymentId,
+                                Integer priority, String actualOwnerId, String createdBy, String deploymentId,
                                 String processId, Long processInstanceId, Date createdOn, Date dueDate, Long workItemId, String formName, String subject, String correlationKey, Integer processType) {
-        this(taskId, status, activationTime, name, description, priority, actualOwner, createdBy, deploymentId,
+        this(taskId, status, activationTime, name, description, priority, actualOwnerId, createdBy, deploymentId,
              processId, processInstanceId, createdOn, dueDate, workItemId, formName, subject, correlationKey, processType, null, null);
     }
 	
 	
     public CustomKieTask(Long taskId, String status, Date activationTime, String name,
                                 String description,
-                                Integer priority, String actualOwner, String createdBy, String deploymentId,
+                                Integer priority, String actualOwnerId, String createdBy, String deploymentId,
                                 String processId, Long processInstanceId, Date createdOn, Date dueDate, Long workItemId, String formName, String subject, String correlationKey, Integer processType,
                                 Date slaDueDate, Integer slaCompliance) {
         this.taskId = taskId;
@@ -156,7 +88,7 @@ public class CustomKieTask implements Serializable {
         this.name = name;
         this.description = description;
         this.priority = priority;
-        this.actualOwner = actualOwner;
+        this.actualOwnerId = actualOwnerId;
         this.createdBy = createdBy;
         this.deploymentId = deploymentId;
         this.processId = processId;
@@ -181,7 +113,7 @@ public class CustomKieTask implements Serializable {
         this.formName = formName;
     }
 
-    public CustomKieTask(Long taskId, String status, String actualOwner, 
+    public CustomKieTask(Long taskId, String status, String actualOwnerId, 
             String name, String description, Integer priority, String createdBy, String processId,
             Long processInstanceId, Date createdOn, String formName, 
             String deploymentId, Date dueDate) {
@@ -190,7 +122,7 @@ public class CustomKieTask implements Serializable {
         this.name = name;
         this.description = description;
         this.priority = priority;
-        this.actualOwner = actualOwner;
+        this.actualOwnerId = actualOwnerId;
         this.createdBy = createdBy;
         this.deploymentId = deploymentId;
         this.processId = processId;
@@ -202,12 +134,12 @@ public class CustomKieTask implements Serializable {
     }
 
     public CustomKieTask(Long taskId, String name, String description, String formName,
-                                            String subject, String actualOwner, String potOwner, 
+                                            String subject, String actualOwnerId, String potOwner, 
                                             String correlationKey, Date createdOn, String createdBy, 
                                             Date expirationDate, Date lastModificationDate, String lastModificationUser,
                                             Integer priority, String status, Long processInstanceId, 
                                             String processId, String deploymentId, String processInstanceDescription) {
-        this(taskId, status, actualOwner, name, description, priority, createdBy, processId, processInstanceId, createdOn, formName, deploymentId, expirationDate);
+        this(taskId, status, actualOwnerId, name, description, priority, createdBy, processId, processInstanceId, createdOn, formName, deploymentId, expirationDate);
         this.potentialOwners.add(potOwner);
         this.correlationKey = correlationKey;
         this.lastModificationDate = lastModificationDate;
@@ -217,7 +149,7 @@ public class CustomKieTask implements Serializable {
         this.processVariables = new HashMap<>();
     }
     
-    public CustomKieTask(String actualOwner, String createdBy,
+    public CustomKieTask(String actualOwnerId, String createdBy,
                                             Date createdOn,Date expirationDate,
                                             Long taskId, String name, String description,
                                             Integer priority, Long processInstanceId,
@@ -225,7 +157,7 @@ public class CustomKieTask implements Serializable {
                                             String potOwner, String formName,
                                             String correlationKey, String subject,
                                             String deploymentId, String processInstanceDescription) {
-              this(taskId, status, actualOwner, name, description, priority, createdBy, processId, processInstanceId, createdOn, formName, deploymentId,expirationDate);
+              this(taskId, status, actualOwnerId, name, description, priority, createdBy, processId, processInstanceId, createdOn, formName, deploymentId,expirationDate);
               this.potentialOwners.add(potOwner);
               this.correlationKey = correlationKey;
               this.processInstanceDescription = processInstanceDescription;
@@ -234,19 +166,71 @@ public class CustomKieTask implements Serializable {
     }
 
 
-    public CustomKieTask(String actualOwner, String createdBy,
-                                            Date createdOn,Date expirationDate,
-                                            Long taskId, String name, String description,
-                                            Integer priority, Long processInstanceId,
-                                            String processId, String status,
-                                            String potOwner, String formName,
-                                            String correlationKey, String subject,
-                                            String deploymentId, String processInstanceDescription,
-                                            Long parentProcessInstanceId,
-                                            String parentProcessName,
-                                            String parentProcessCorrelationKey,
-                                            String processName) {
-              this(actualOwner, createdBy, createdOn, expirationDate, taskId, name, description, priority, processInstanceId, processId, status, potOwner, formName, correlationKey, subject, deploymentId, processInstanceDescription);              
+    public CustomKieTask(
+                            String applicationNumber,
+                            String applicationName,
+                            String universityName,
+                            String actualOwnerEmail, 
+                            String actualOwnerId, 
+                            String createdBy,
+                            Date createdOn,
+                            Date expirationDate,
+                            Long taskId, 
+                            String name, 
+                            String description,
+                            Integer priority, 
+                            Long processInstanceId,
+                            String processId, 
+                            String status,
+                            String potOwner, 
+                            String formName,
+                            String correlationKey, 
+                            String subject,
+                            String deploymentId, 
+                            String processInstanceDescription,
+                            Long parentProcessInstanceId,
+                            String parentProcessName,
+                            String parentProcessCorrelationKey,
+                            String processName) {
+              this(actualOwnerId, createdBy, createdOn, expirationDate, taskId, name, description, priority, processInstanceId, processId, status, potOwner, formName, correlationKey, subject, deploymentId, processInstanceDescription);              
+              this.applicationNumber = applicationNumber;
+              this.applicationName = applicationName;
+              this.universityName = universityName;
+              this.actualOwnerEmail = actualOwnerEmail;
+              this.potentialOwners.add(potOwner);
+              this.correlationKey = correlationKey;
+              this.processInstanceDescription = processInstanceDescription;
+              this.subject = subject;
+              this.processVariables = new HashMap<>();
+              this.processName = processName;
+              this.parentProcessInstanceId = parentProcessInstanceId;
+              this.parentProcessName = parentProcessName;
+              this.parentProcessCorrelationKey = parentProcessCorrelationKey;
+    }
+
+    public CustomKieTask(
+                            String actualOwnerId, 
+                            String createdBy,
+                            Date createdOn,
+                            Date expirationDate,
+                            Long taskId, 
+                            String name, 
+                            String description,
+                            Integer priority, 
+                            Long processInstanceId,
+                            String processId, 
+                            String status,
+                            String potOwner, 
+                            String formName,
+                            String correlationKey, 
+                            String subject,
+                            String deploymentId, 
+                            String processInstanceDescription,
+                            Long parentProcessInstanceId,
+                            String parentProcessName,
+                            String parentProcessCorrelationKey,
+                            String processName) {
+              this(actualOwnerId, createdBy, createdOn, expirationDate, taskId, name, description, priority, processInstanceId, processId, status, potOwner, formName, correlationKey, subject, deploymentId, processInstanceDescription);              
               this.potentialOwners.add(potOwner);
               this.correlationKey = correlationKey;
               this.processInstanceDescription = processInstanceDescription;
@@ -313,10 +297,13 @@ public class CustomKieTask implements Serializable {
 		return this.processId;
 	}
 
-	public String getActualOwner() {
-		
-		return this.actualOwner;
-	}
+    public String getActualOwnerId() {
+        return actualOwnerId;
+    }
+
+    public String getActualOwnerEmail() {
+        return actualOwnerEmail;
+    }
 
 	public String getDeploymentId() {
 		
@@ -521,11 +508,30 @@ public class CustomKieTask implements Serializable {
     public Map<String, Object> getExtraData() {
         return data;
     }
+
+    public String getApplicationNumber() {
+        return applicationNumber;
+    }
+    public void setApplicationNumber(String applicationNumber) {
+        this.applicationNumber = applicationNumber;
+    }
+    public String getApplicationName() {
+        return applicationName;
+    }
+    public void setApplicationName(String applicationName) {
+        this.applicationName = applicationName;
+    }
+    public String getUniversityName() {
+        return universityName;
+    }
+    public void setUniversityName(String universityName) {
+        this.universityName = universityName;
+    }
     
 	@Override
 	public String toString() {
-	    return "CustomKieTask [taskId=" + taskId + ", parentProcessInstanceId=" + parentProcessInstanceId + ", parentProcessName=" + parentProcessName + ", parentProcessCorrelationKey=" + parentProcessCorrelationKey +", processName=" + processName + ", status=" + status + ", activationTime=" + activationTime + ", name=" + name + ", description=" + description + ", priority=" + priority + ", actualOwner=" +
-	            actualOwner + ", createdBy=" + createdBy + ", deploymentId=" + deploymentId + ", processId=" + processId + ", processInstanceId=" + processInstanceId + ", createdOn=" + createdOn + ", dueDate=" + dueDate +
+	    return "CustomKieTask [taskId=" + taskId + ", parentProcessInstanceId=" + parentProcessInstanceId + ", parentProcessName=" + parentProcessName + ", parentProcessCorrelationKey=" + parentProcessCorrelationKey +", processName=" + processName + ", status=" + status + ", activationTime=" + activationTime + ", name=" + name + ", description=" + description + ", priority=" + priority + ", actualOwnerId=" +
+	            actualOwnerId + ", createdBy=" + createdBy + ", deploymentId=" + deploymentId + ", processId=" + processId + ", processInstanceId=" + processInstanceId + ", createdOn=" + createdOn + ", dueDate=" + dueDate +
 	            ", formName=" + formName + ", workItemId=" + workItemId + ", slaDueDate=" + slaDueDate + ", slaCompliance=" + slaCompliance + ", subject=" + subject + ", correlationKey=" + correlationKey +
 	            ", processType=" + processType + "]";
 	}

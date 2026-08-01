@@ -31,6 +31,7 @@ public class Task implements Serializable {
     private String applicationNumber;
     private String applicationName;
     private String issuingOffice;
+    private String universityName;
     private String type;
     private String status;
     private String assignedTo;
@@ -147,6 +148,14 @@ public class Task implements Serializable {
         this.issuingOffice = issuingOffice;
     }
 
+    public String getUniversityName() {
+        return universityName;
+    }
+
+    public void setUniversityName(String universityName) {
+        this.universityName = universityName;
+    }
+
     public String getType() {
         return type;
     }
@@ -220,6 +229,7 @@ public class Task implements Serializable {
                 ", applicationNumber='" + applicationNumber + '\'' +
                 ", applicationName='" + applicationName + '\'' +
                 ", issuingOffice='" + issuingOffice + '\'' +
+                ", universityName='" + universityName + '\'' +
                 ", type='" + type + '\'' +
                 ", status='" + status + '\'' +
                 '}';

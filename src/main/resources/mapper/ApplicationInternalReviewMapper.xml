@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="x.y.z.backend.repository.mapper.ApplicationInternalReviewMapper">
+
+    <!-- Insert ApplicationInternalReview -->
+    <insert id="insert" parameterType="x.y.z.backend.domain.model.ApplicationInternalReview"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO RAP.application_internal_review (
+            application_id,
+            task_id,
+            reviewer_user_id,
+            review_date,
+            signature_image
+        ) VALUES (
+            #{applicationId},
+            #{taskId},
+            #{reviewerUserId},
+            #{reviewDate},
+            #{signatureImage,jdbcType=VARBINARY}
+        )
+    </insert>
+
+</mapper>

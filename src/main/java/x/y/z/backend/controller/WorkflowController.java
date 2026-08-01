@@ -5,17 +5,24 @@ import jakarta.validation.constraints.Min;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.kie.server.client.UserTaskServicesClient;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
+
 import x.y.z.backend.config.CurrentUser;
+import x.y.z.backend.controller.dto.CompleteTaskWithReviewRequest;
 import x.y.z.backend.domain.dto.PageResponse;
 import x.y.z.backend.domain.model.Task;
 import x.y.z.backend.domain.model.TaskForm;
+import x.y.z.backend.service.ApplicationInternalReviewService;
 import x.y.z.backend.service.DashboardTaskService;
 import x.y.z.backend.service.ProcessService;
+import x.y.z.backend.utils.KieClient;
 
 /**
  * REST Controller for Workflow Task operations.
@@ -37,10 +44,13 @@ public class WorkflowController {
 
     private final ProcessService processService;
     private final DashboardTaskService dashboardTaskService;
+    private final ApplicationInternalReviewService applicationInternalReviewService;
 
-    public WorkflowController(ProcessService processService, DashboardTaskService dashboardTaskService) {
+    public WorkflowController(ProcessService processService, DashboardTaskService dashboardTaskService,
+            ApplicationInternalReviewService applicationInternalReviewService) {
         this.processService = processService;
         this.dashboardTaskService = dashboardTaskService;
+        this.applicationInternalReviewService = applicationInternalReviewService;
     }
 
     /**
@@ -73,8 +83,9 @@ public class WorkflowController {
             @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
             @RequestParam(name = "size", defaultValue = "10") @Min(1) int size) {
 
-        PageResponse<TaskForm> result = dashboardTaskService.getMyActiveTasks(currentUser.getUserId(), page, size);
+        PageResponse<TaskForm> result = dashboardTaskService.myActiveTasks(currentUser.getUserId(), page, size);
         return ResponseEntity.ok(result);
+
     }
 
 	@RequestMapping(value = "/myUniversityTasks", method = RequestMethod.GET, produces = "application/json")
@@ -87,6 +98,44 @@ public class WorkflowController {
         PageResponse<TaskForm> result = dashboardTaskService.myUniversityTasks(officeid, page, size);
         return ResponseEntity.ok(result);
     }
+
+    // Assign To Me
+	@RequestMapping(value = "/startTask", method = RequestMethod.DELETE, produces="application/json")
+	public @ResponseBody Boolean startTask(
+			@RequestParam("containerId") String containerId,
+			@RequestParam("taskId") Long taskId,
+			CurrentUser currentUser){
+
+		UserTaskServicesClient client = KieClient.getUserTaskServicesClient();
+		client.startTask(containerId, taskId, currentUser.getUserId().toString());
+		return true;
+	}
+
+	@RequestMapping(value = "/releaseTask", method = RequestMethod.DELETE, produces="application/json")
+	public @ResponseBody Boolean releaseTask(
+			@RequestParam("containerId") String containerId,
+			@RequestParam("taskId") Long taskId,
+			CurrentUser currentUser){
+
+		UserTaskServicesClient client = KieClient.getUserTaskServicesClient();
+		client.releaseTask(containerId, taskId, currentUser.getUserId().toString());
+		return true;
+	}
+
+	@RequestMapping(value = "/takeoverTask", method = RequestMethod.DELETE, produces="application/json")
+	//@PreAuthorize("@accessControl.isPotentialOwner(#taskId)")
+	public @ResponseBody Boolean takeoverTask(
+			@RequestParam("containerId") String containerId,
+			@RequestParam("taskId") Long taskId,
+			CurrentUser currentUser){
+
+		UserTaskServicesClient client = KieClient.getUserTaskServicesClient();
+		String userId = currentUser.getUserId().toString();
+		client.delegateTask(containerId, taskId, userId, userId);
+		client.startTask(containerId, taskId, userId);
+		return true;
+	}
+
 
     /**
      * Complete a jBPM task from the dashboard's "Action Needed" tab, on behalf of the
@@ -101,6 +150,26 @@ public class WorkflowController {
         if (containerId == null || containerId.isBlank()) {
             throw new IllegalArgumentException("containerId is required");
         }
+        dashboardTaskService.completeTask(containerId, taskId, currentUser.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Complete a jBPM task from the dashboard's "My Tasks" tab (internal users), after
+     * recording the reviewer's signature and review date against the application.
+     * POST /api/workflow/myActiveTasks/{taskId}/completeWithReview?containerId=...
+     */
+    @PostMapping("/myActiveTasks/{taskId}/completeWithReview")
+    public ResponseEntity<Void> completeActiveTaskWithReview(
+            @PathVariable @Min(1) Long taskId,
+            @RequestParam("containerId") String containerId,
+            @Valid @RequestBody CompleteTaskWithReviewRequest request,
+            CurrentUser currentUser) {
+        if (containerId == null || containerId.isBlank()) {
+            throw new IllegalArgumentException("containerId is required");
+        }
+        applicationInternalReviewService.saveReview(request.getApplicationId(), taskId, currentUser.getUserId(),
+                request.getReviewDate(), request.getSignatureImage());
         dashboardTaskService.completeTask(containerId, taskId, currentUser.getUserId());
         return ResponseEntity.noContent().build();
     }

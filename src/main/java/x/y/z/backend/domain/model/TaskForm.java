@@ -15,6 +15,7 @@ public class TaskForm extends Task {
     private Long applicationId;
 
     protected Long universityId;
+    protected String universityName;
 
     //@Size(min = 1, max = 50)
     //private String applicationNumber;
@@ -172,5 +173,11 @@ public class TaskForm extends Task {
 
     public void setEstimatedDecisionDate(Date estimatedDecisionDate) {
         this.estimatedDecisionDate = estimatedDecisionDate;
+    }
+    public String getUniversityName() {
+        return universityName;
+    }
+    public void setUniversityName(String universityName) {
+        this.universityName = universityName;
     }
 }

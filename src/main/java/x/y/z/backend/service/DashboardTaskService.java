@@ -1,9 +1,7 @@
 package x.y.z.backend.service;
 
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -47,7 +45,7 @@ public class DashboardTaskService {
         this.applicationSubmissionHandler = applicationSubmissionHandler;
     }
 
-    public PageResponse<TaskForm> getMyActiveTasks(Long userId, int page, int size) {
+    /*public PageResponse<TaskForm> getMyActiveTasks(Long userId, int page, int size) {
         UserTaskServicesClient client = KieClient.getUserTaskServicesClient();
         List<String> statuses = new ArrayList<>();
         statuses.add(TaskStatus.INPROGRESS.value());
@@ -65,35 +63,72 @@ public class DashboardTaskService {
 
         List<TaskForm> content = toTaskForms(pageContent);
         return new PageResponse<>(content, page, size, totalElements);
-    }
+    }*/
 
     public PageResponse<TaskForm> myUniversityTasks(Long officeid, int page, int size) {
 
         List<String> groupIds = new ArrayList<String>();
         groupIds.add(String.format(GROUP_ID_FORMAT, "INTERNAL_USER", officeid));
 
-        List<CustomKieTask> fetched = findTasksAssignedAsPotentialOwnerByGroup(groupIds, page, size + 1);
+        List<?> fetched = findTasksAssignedAsPotentialOwnerByGroup(groupIds, page, size + 1);
 
         System.out.println("Total rows fetched ======================================== "+fetched.size());
         boolean hasNext = fetched.size() > size;
-        List<CustomKieTask> pageContent = hasNext ? fetched.subList(0, size) : fetched;
+        List<?> pageContent = hasNext ? fetched.subList(0, size) : fetched;
         long totalElements = (long) page * size + pageContent.size() + (hasNext ? 1 : 0);
 
-        List<TaskForm> content = toTaskForms2(pageContent);
+        List<TaskForm> content = toTaskForms(pageContent);
         return new PageResponse<>(content, page, size, totalElements);
     }
 
-	private List<CustomKieTask> findTasksAssignedAsPotentialOwnerByGroup(List<String> groupIds, int pageNumber, int pageSize){
+    public PageResponse<TaskForm> myActiveTasks(Long userId, int page, int size) {
+
+        List<String> userIds = new ArrayList<String>();
+        userIds.add(String.valueOf(userId));
+
+        List<String> statuses = new ArrayList<>();
+        statuses.add(TaskStatus.INPROGRESS.value());
+
+        List<?> fetched = findTasksAssignedAsActualOwner(userIds, statuses, page, size + 1);
+
+        System.out.println("Total rows fetched ======================================== "+fetched.size());
+        boolean hasNext = fetched.size() > size;
+        List<?> pageContent = hasNext ? fetched.subList(0, size) : fetched;
+        long totalElements = (long) page * size + pageContent.size() + (hasNext ? 1 : 0);
+
+        List<TaskForm> content = toTaskForms(pageContent);
+        return new PageResponse<>(content, page, size, totalElements);
+    }
+
+
+	// CustomKieTask.class is passed only to satisfy the query() signature - kie-server-client's
+	// QueryServicesClientImpl.getResultTypeList() only recognizes a hardcoded whitelist of
+	// built-in KIE types (TaskSummary, ProcessInstance, etc.) and falls back to Object.class for
+	// any custom QueryResultMapper result type, so this always deserializes as raw
+	// List<LinkedHashMap>, never List<CustomKieTask>, regardless of the class literal passed
+	// here. toTaskForms2 reads those maps directly instead of casting to CustomKieTask.
+	private List<?> findTasksAssignedAsPotentialOwnerByGroup(List<String> groupIds, int pageNumber, int pageSize){
 
 		QueryServicesClient queryClient = KieClient.getQueryServicesClient();
 
 		QueryFilterSpec spec = new QueryFilterSpecBuilder().in("potowner", groupIds).oderBy("createdOn", false).get();
 		//spec.setOrderBy(orderBy);
-		List<CustomKieTask> tasks = queryClient.query(QueryName_findTasksAssignedAsPotentialOwnerByGroup, "CustomKieTaskMapper", spec, pageNumber, pageSize, CustomKieTask.class);
-		return tasks;
+		return queryClient.query(QueryName_findTasksAssignedAsPotentialOwnerByGroup, "CustomKieTaskMapper", spec, pageNumber, pageSize, CustomKieTask.class);
 	}
 
-    private List<TaskForm> toTaskForms(List<TaskSummary> source) {
+	private List<?> findTasksAssignedAsActualOwner(List<String> userIds, List<String> statuses, int pageNumber, int pageSize){
+
+		QueryServicesClient queryClient = KieClient.getQueryServicesClient();
+
+		QueryFilterSpec spec = new QueryFilterSpecBuilder().
+            in("ACTUALOWNER", userIds).
+            in("STATUS", statuses).
+            oderBy("createdOn", false).get();
+		//spec.setOrderBy(orderBy);
+		return queryClient.query(QueryName_findTasksAssignedAsPotentialOwnerByGroup, "CustomKieTaskMapper", spec, pageNumber, pageSize, CustomKieTask.class);
+	}
+
+    /*private List<TaskForm> toTaskForms(List<TaskSummary> source) {
         List<TaskForm> result = new ArrayList<>();
         for (TaskSummary summary : source) {
             TaskForm task = new TaskForm();
@@ -111,34 +146,44 @@ public class DashboardTaskService {
             result.add(task);
         }
         return result;
-    }
+    }*/
 
-	private List<TaskForm> toTaskForms2(List<CustomKieTask> source){
+	// source elements are raw LinkedHashMap<String,Object> (see findTasksAssignedAsPotentialOwnerByGroup)
+	// keyed by CustomKieTask's @XmlElement names, which the server's JSON marshaller also uses
+	// (kie-server-api's JSONMarshaller applies JAXB annotation introspection) - e.g. "task-id",
+	// "task-name", "task-container-id". CustomKieTask itself is not reconstructed here since most
+	// of its fields (taskId, status, actualOwner, deploymentId, processInstanceId...) have no
+	// setters, only constructors, making it awkward to populate from a generic map.
+	private List<TaskForm> toTaskForms(List<?> source){
 		List<TaskForm> result = new ArrayList<TaskForm>();
-		for(CustomKieTask summary : source){
+		for(Object item : source){
+			@SuppressWarnings("unchecked")
+			Map<String, Object> summary = (Map<String, Object>) item;
 			TaskForm task = new TaskForm();
-    		task.setStatus(ConvertUtil.getRaptorTaskStatus(summary.getStatus()));
-    		task.setId(summary.getTaskId());
-    		task.setName(summary.getName());
-    		task.setContainerId(summary.getDeploymentId());//containerId => deploymentId
-			String prrocessName = summary.getProcessName();
-			String parentProcessName = summary.getParentProcessName();
+    		task.setStatus(ConvertUtil.getRaptorTaskStatus((String) summary.get("status")));
+    		task.setId(toLong(summary.get("taskId")));
+    		task.setName((String) summary.get("name"));
+            task.setApplicationNumber((String) summary.get("applicationNumber"));
+            task.setApplicationName((String) summary.get("applicationName"));
+            task.setUniversityName((String) summary.get("universityName"));
+    		task.setContainerId((String) summary.get("deploymentId"));//containerId => deploymentId
+			String prrocessName = (String) summary.get("processName");
+			String parentProcessName = (String) summary.get("parentProcessName");
 			//If this task belongs to a child process, then populate parent process details. UI only cares about parent workflow details.
 			//Parent process details to populate : 1) Parent Process Name 2) Parent Process Correlation key.
     		task.setProcessName(parentProcessName != null ? parentProcessName : prrocessName);
-			//task.setCorrelationKey(parentProcessName != null ? summary.getParentProcessCorrelationKey() : summary.getCorrelationKey());
-    		task.setProcessInstanceId(summary.getProcessInstanceId());
-			//task.setDateAssigned(ConvertUtil.getDate(summary.getActivationTime()));
-    		task.setAssigneeId(summary.getActualOwner());
-    		task.setAssignee(summary.getActualOwner());    		
-    		if(summary.getDueDate()!= null){ //expirationtime => dueDate
-    			Date now = new Date();
-    			long daysRemaining = ChronoUnit.DAYS.between(now.toInstant(), summary.getDueDate().toInstant());
-    			//task.setDaysRemainingToComplete(daysRemaining+1);
-    		}
+    		task.setProcessInstanceId(toLong(summary.get("processInstanceId")));
+    		task.setAssigneeId((String) summary.get("actualOwnerId"));
+    		task.setAssignee((String) summary.get("actualOwnerEmail"));
+    		task.setApplicationId(
+    				applicationSubmissionHandler.findApplicationIdByProcessInstanceId(task.getProcessInstanceId()));
     		result.add(task);
 		}
         return result;
+    }
+
+    private Long toLong(Object value) {
+        return value == null ? null : ((Number) value).longValue();
     }
 
     /**

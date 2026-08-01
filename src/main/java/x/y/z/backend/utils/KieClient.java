@@ -1,5 +1,6 @@
 package x.y.z.backend.utils;
 
+import org.kie.server.api.marshalling.MarshallingFormat;
 import org.kie.server.client.DocumentServicesClient;
 import org.kie.server.client.KieServicesClient;
 import org.kie.server.client.KieServicesConfiguration;
@@ -10,12 +11,15 @@ import org.kie.server.client.UserTaskServicesClient;
 import org.kie.server.client.admin.ProcessAdminServicesClient;
 import org.kie.server.client.admin.UserTaskAdminServicesClient;
 import org.kie.server.client.impl.AbstractKieServicesClientImpl;
+
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
+
+import x.y.z.backend.domain.model.CustomKieTask;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -35,14 +39,16 @@ public class KieClient {
 	public static String latestPidVerSciModifyPermit;   
 	
     private static KieServicesClient kieServicesClient;
+	private static KieServicesClient queryKieServicesClient;
 	private static UserTaskServicesClient userTaskServicesClient;
 	private static QueryServicesClient queryServicesClient;
 	private static ProcessServicesClient processServicesClient;
 	private static DocumentServicesClient documentServicesClient;
 	private static ProcessAdminServicesClient processAdminServicesClient;
 	private static UserTaskAdminServicesClient userTaskAdminServicesClient;
-	
+
 	private static final Object mutex_kieSvcClient = new Object();
+	private static final Object mutex_qryKieSvcClient = new Object();
 	private static final Object mutex_usrSvcClient = new Object();
 	private static final Object mutex_qrySvcClient = new Object();
 	private static final Object mutex_prcSvcClient = new Object();
@@ -56,7 +62,7 @@ public class KieClient {
 	static {
 		//jaxbClasses.add(Domain.class);		
 		jaxbClasses.add(org.jbpm.document.service.impl.DocumentImpl.class);	
-		//jaxbClasses.add(CustomKieTask.class);	
+		jaxbClasses.add(CustomKieTask.class);	
 	}
 	
 
@@ -75,7 +81,35 @@ public class KieClient {
 		}
 		return kieServicesClient;
 	}
-	
+
+	/**
+	 * Separate KieServicesClient used only by getQueryServicesClient(), configured for JSON
+	 * instead of the default (XML/JAXB) format the shared client above uses. Custom queries
+	 * (e.g. findTasksAssignedAsPotentialOwnerByGroup) return CustomKieTask, a class that isn't
+	 * known to the KIE Server's JAXBContext on the processes side (see CustomQueryConfig in
+	 * that module) - JAXB requires every marshalled class to be registered ahead of time,
+	 * so it throws "class ... nor any of its super class is known to this context" for any
+	 * custom result type. Jackson (used for JSON) serializes POJOs via reflection without that
+	 * closed-world requirement, so routing query calls through JSON sidesteps the problem
+	 * entirely. Scoped to its own client (not applied to getKieServicesClient()) so task/
+	 * process/document/admin calls, which already work under the default format, are untouched.
+	 */
+	private static KieServicesClient getQueryKieServicesClient(){
+		if(queryKieServicesClient == null){
+			synchronized (mutex_qryKieSvcClient){
+				if(queryKieServicesClient == null){
+					KieServicesConfiguration kieConfig =  KieServicesFactory.newRestConfiguration(
+							kieServerURL, kieServerUser, kieServerPassword, 60000);
+					kieConfig.setMarshallingFormat(MarshallingFormat.JSON);
+					kieConfig.setExtraClasses(jaxbClasses);
+					queryKieServicesClient = KieServicesFactory.newKieServicesClient(kieConfig);
+					((AbstractKieServicesClientImpl)queryKieServicesClient).getLoadBalancer().setCheckFailedEndpoint(true);
+				}
+			}
+		}
+		return queryKieServicesClient;
+	}
+
 	public static ProcessAdminServicesClient getProcessAdminServicesClient(){
 		//double-checked locking pattern.
 		if(processAdminServicesClient == null){
@@ -133,8 +167,8 @@ public class KieClient {
 		if(queryServicesClient == null){
 			synchronized (mutex_qrySvcClient){
 				if(queryServicesClient == null){
-					KieServicesClient client = getKieServicesClient();
-					queryServicesClient = client.getServicesClient(QueryServicesClient.class);					
+					KieServicesClient client = getQueryKieServicesClient();
+					queryServicesClient = client.getServicesClient(QueryServicesClient.class);
 				}
 			}
 		}
