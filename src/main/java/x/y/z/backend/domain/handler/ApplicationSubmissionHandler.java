@@ -77,7 +77,6 @@ public class ApplicationSubmissionHandler {
         application.setApplicationName(request.getApplicationName());
         application.setApplicationCode(generateApplicationCode());
         application.setDescription(buildDescription(request));
-        application.setStatus("PENDING");
         application.setOwnerName(request.getFirstName() + " " + request.getLastName());
         application.setOwnerEmail(request.getEmail());
         application.setCreatedBy(username);

@@ -22,13 +22,12 @@
     </resultMap>
 
     <!-- Insert Application -->
-    <insert id="insert" parameterType="x.y.z.backend.domain.model.Application" 
+    <insert id="insert" parameterType="x.y.z.backend.domain.model.Application"
             useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO RAP.application (
             application_name,
             application_code,
             description,
-            status,
             owner_name,
             owner_email,
             university_id,
@@ -38,7 +37,6 @@
             #{applicationName},
             #{applicationCode},
             #{description},
-            #{status},
             #{ownerName},
             #{ownerEmail},
             #{universityId},
@@ -52,7 +50,6 @@
         UPDATE RAP.application
         SET application_name = #{applicationName},
             description = #{description},
-            status = #{status},
             owner_name = #{ownerName},
             owner_email = #{ownerEmail},
             updated_at = GETDATE(),
@@ -65,7 +62,6 @@
         UPDATE RAP.application
         SET application_name = #{applicationName},
             description = #{description},
-            status = #{status},
             owner_name = #{ownerName},
             owner_email = #{ownerEmail},
             university_id = #{universityId},
@@ -86,7 +82,7 @@
             a.application_name,
             a.application_code,
             a.description,
-            a.status,
+            sts.GENERIC_REF_TBL_DESC AS status,
             a.owner_name,
             a.owner_email,
             a.university_id,
@@ -95,83 +91,82 @@
             a.created_by,
             a.updated_at,
             a.updated_by
-        FROM RAP.application a
-        LEFT JOIN RAP.university u ON a.university_id = u.id
+        <include refid="applicationStatusJoin"/>
         WHERE a.id = #{id}
     </select>
 
     <!-- Find Application by Code -->
     <select id="findByApplicationCode" resultMap="ApplicationResultMap">
-        SELECT 
-            id,
-            application_name,
-            application_code,
-            description,
-            status,
-            owner_name,
-            owner_email,
-            created_at,
-            created_by,
-            updated_at,
-            updated_by
-        FROM RAP.application
-        WHERE application_code = #{applicationCode}
+        SELECT
+            a.id,
+            a.application_name,
+            a.application_code,
+            a.description,
+            sts.GENERIC_REF_TBL_DESC AS status,
+            a.owner_name,
+            a.owner_email,
+            a.created_at,
+            a.created_by,
+            a.updated_at,
+            a.updated_by
+        <include refid="applicationStatusJoin"/>
+        WHERE a.application_code = #{applicationCode}
     </select>
 
     <!-- Find All Applications -->
     <select id="findAll" resultMap="ApplicationResultMap">
-        SELECT 
-            id,
-            application_name,
-            application_code,
-            description,
-            status,
-            owner_name,
-            owner_email,
-            created_at,
-            created_by,
-            updated_at,
-            updated_by
-        FROM RAP.application
-        ORDER BY created_at DESC
+        SELECT
+            a.id,
+            a.application_name,
+            a.application_code,
+            a.description,
+            sts.GENERIC_REF_TBL_DESC AS status,
+            a.owner_name,
+            a.owner_email,
+            a.created_at,
+            a.created_by,
+            a.updated_at,
+            a.updated_by
+        <include refid="applicationStatusJoin"/>
+        ORDER BY a.created_at DESC
     </select>
 
-    <!-- Find Applications by Status -->
+    <!-- Find Applications whose latest WORKFLOW_APP_ASSOC status code matches -->
     <select id="findByStatus" resultMap="ApplicationResultMap">
-        SELECT 
-            id,
-            application_name,
-            application_code,
-            description,
-            status,
-            owner_name,
-            owner_email,
-            created_at,
-            created_by,
-            updated_at,
-            updated_by
-        FROM RAP.application
-        WHERE status = #{status}
-        ORDER BY created_at DESC
+        SELECT
+            a.id,
+            a.application_name,
+            a.application_code,
+            a.description,
+            sts.GENERIC_REF_TBL_DESC AS status,
+            a.owner_name,
+            a.owner_email,
+            a.created_at,
+            a.created_by,
+            a.updated_at,
+            a.updated_by
+        <include refid="applicationStatusJoin"/>
+        WHERE sts.GENERIC_REF_TBL_CODE = #{status}
+        ORDER BY a.created_at DESC
     </select>
 
     <!-- Search Applications by Name Pattern -->
     <select id="searchByName" resultMap="ApplicationResultMap">
-        SELECT 
-            id,
-            application_name,
-            application_code,
-            description,
-            status,
-            owner_name,
-            owner_email,
-            created_at,
-            created_by,
-            updated_at,
-            updated_by
-        FROM RAP.application
-        WHERE application_name LIKE '%' + #{namePattern} + '%'
-        ORDER BY application_name
+        SELECT
+            a.id,
+            a.application_name,
+            a.application_code,
+            a.description,
+            sts.GENERIC_REF_TBL_DESC AS status,
+            a.owner_name,
+            a.owner_email,
+            a.created_at,
+            a.created_by,
+            a.updated_at,
+            a.updated_by
+        <include refid="applicationStatusJoin"/>
+        WHERE a.application_name LIKE '%' + #{namePattern} + '%'
+        ORDER BY a.application_name
     </select>
 
     <!-- Count Total Applications -->
@@ -188,8 +183,10 @@
 
     <!-- Joins each application to its most recent non-deleted WORKFLOW_APP_ASSOC status
          (via OUTER APPLY so applications with no association yet, e.g. drafts, still
-         appear with a NULL status code rather than being dropped by an inner join). -->
-    <sql id="userStatusJoin">
+         appear with a NULL status code rather than being dropped by an inner join).
+         RAP.application no longer stores its own status column - this join, resolved
+         through RAP.GENERIC_REF_TBL, is the sole source of an application's status. -->
+    <sql id="applicationStatusJoin">
         FROM RAP.application a
         LEFT JOIN RAP.university u ON a.university_id = u.id
         OUTER APPLY (
@@ -208,7 +205,7 @@
             a.application_name,
             a.application_code,
             a.description,
-            a.status,
+            sts.GENERIC_REF_TBL_DESC AS status,
             a.owner_name,
             a.owner_email,
             a.university_id,
@@ -217,7 +214,7 @@
             a.created_by,
             a.updated_at,
             a.updated_by
-        <include refid="userStatusJoin"/>
+        <include refid="applicationStatusJoin"/>
         WHERE a.owner_email = #{userEmail}
           AND (sts.GENERIC_REF_TBL_CODE IS NULL OR sts.GENERIC_REF_TBL_CODE &lt;&gt; 'ACCEPTED')
         ORDER BY a.created_at DESC
@@ -228,7 +225,7 @@
     <!-- Count Applications by User (My Applications tab) -->
     <select id="countByUser" resultType="long">
         SELECT COUNT(*)
-        <include refid="userStatusJoin"/>
+        <include refid="applicationStatusJoin"/>
         WHERE a.owner_email = #{userEmail}
           AND (sts.GENERIC_REF_TBL_CODE IS NULL OR sts.GENERIC_REF_TBL_CODE &lt;&gt; 'ACCEPTED')
     </select>
@@ -240,7 +237,7 @@
             a.application_name,
             a.application_code,
             a.description,
-            a.status,
+            sts.GENERIC_REF_TBL_DESC AS status,
             a.owner_name,
             a.owner_email,
             a.university_id,
@@ -249,7 +246,7 @@
             a.created_by,
             a.updated_at,
             a.updated_by
-        <include refid="userStatusJoin"/>
+        <include refid="applicationStatusJoin"/>
         WHERE a.owner_email = #{userEmail}
           AND sts.GENERIC_REF_TBL_CODE = 'ACCEPTED'
         ORDER BY a.created_at DESC
@@ -260,19 +257,19 @@
     <!-- Count Applications by User (My Permits tab) -->
     <select id="countAcceptedByUser" resultType="long">
         SELECT COUNT(*)
-        <include refid="userStatusJoin"/>
+        <include refid="applicationStatusJoin"/>
         WHERE a.owner_email = #{userEmail}
           AND sts.GENERIC_REF_TBL_CODE = 'ACCEPTED'
     </select>
 
-    <!-- Find Applications by University with Pagination -->
+    <!-- Find Applications by University with Pagination (Internal Applications tab: everything not yet ACCEPTED) -->
     <select id="findByUniversityPaginated" resultMap="ApplicationResultMap">
-        SELECT 
+        SELECT
             a.id,
             a.application_name,
             a.application_code,
             a.description,
-            a.status,
+            sts.GENERIC_REF_TBL_DESC AS status,
             a.owner_name,
             a.owner_email,
             a.university_id,
@@ -281,19 +278,52 @@
             a.created_by,
             a.updated_at,
             a.updated_by
-        FROM RAP.application a
-        LEFT JOIN RAP.university u ON a.university_id = u.id
+        <include refid="applicationStatusJoin"/>
         WHERE a.university_id = #{universityId}
+          AND (sts.GENERIC_REF_TBL_CODE IS NULL OR sts.GENERIC_REF_TBL_CODE &lt;&gt; 'ACCEPTED')
         ORDER BY a.created_at DESC
         OFFSET #{offset} ROWS
         FETCH NEXT #{limit} ROWS ONLY
     </select>
 
-    <!-- Count Applications by University -->
+    <!-- Count Applications by University (Internal Applications tab) -->
     <select id="countByUniversity" resultType="long">
-        SELECT COUNT(*) 
-        FROM RAP.application
-        WHERE university_id = #{universityId}
+        SELECT COUNT(*)
+        <include refid="applicationStatusJoin"/>
+        WHERE a.university_id = #{universityId}
+          AND (sts.GENERIC_REF_TBL_CODE IS NULL OR sts.GENERIC_REF_TBL_CODE &lt;&gt; 'ACCEPTED')
+    </select>
+
+    <!-- Find Applications by University with Pagination (Internal Permits tab: ACCEPTED only) -->
+    <select id="findAcceptedByUniversityPaginated" resultMap="ApplicationResultMap">
+        SELECT
+            a.id,
+            a.application_name,
+            a.application_code,
+            a.description,
+            sts.GENERIC_REF_TBL_DESC AS status,
+            a.owner_name,
+            a.owner_email,
+            a.university_id,
+            u.university_name,
+            a.created_at,
+            a.created_by,
+            a.updated_at,
+            a.updated_by
+        <include refid="applicationStatusJoin"/>
+        WHERE a.university_id = #{universityId}
+          AND sts.GENERIC_REF_TBL_CODE = 'ACCEPTED'
+        ORDER BY a.created_at DESC
+        OFFSET #{offset} ROWS
+        FETCH NEXT #{limit} ROWS ONLY
+    </select>
+
+    <!-- Count Applications by University (Internal Permits tab) -->
+    <select id="countAcceptedByUniversity" resultType="long">
+        SELECT COUNT(*)
+        <include refid="applicationStatusJoin"/>
+        WHERE a.university_id = #{universityId}
+          AND sts.GENERIC_REF_TBL_CODE = 'ACCEPTED'
     </select>
 
 </mapper>

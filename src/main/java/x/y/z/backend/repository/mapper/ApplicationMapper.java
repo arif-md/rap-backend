@@ -114,4 +114,15 @@ public interface ApplicationMapper {
         @Param("limit") int limit
     );
     long countByUniversity(@Param("universityId") Long universityId);
+
+    /**
+     * Find ACCEPTED applications by university with pagination (backs the internal "Permits" tab:
+     * an application becomes a permit once its latest workflow status is ACCEPTED).
+     */
+    List<Application> findAcceptedByUniversityPaginated(
+        @Param("universityId") Long universityId,
+        @Param("offset") int offset,
+        @Param("limit") int limit
+    );
+    long countAcceptedByUniversity(@Param("universityId") Long universityId);
 }

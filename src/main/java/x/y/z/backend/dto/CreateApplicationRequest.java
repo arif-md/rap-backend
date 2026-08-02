@@ -22,9 +22,6 @@ public class CreateApplicationRequest {
     @Size(max = 5000, message = "Description must not exceed 5000 characters")
     private String description;
 
-    @Pattern(regexp = "^(ACTIVE|INACTIVE|PENDING|ARCHIVED)$", message = "Status must be one of: ACTIVE, INACTIVE, PENDING, ARCHIVED")
-    private String status;
-
     @Size(max = 255, message = "Owner name must not exceed 255 characters")
     private String ownerName;
 
@@ -36,12 +33,11 @@ public class CreateApplicationRequest {
     public CreateApplicationRequest() {
     }
 
-    public CreateApplicationRequest(String applicationName, String applicationCode, String description, 
-                                    String status, String ownerName, String ownerEmail) {
+    public CreateApplicationRequest(String applicationName, String applicationCode, String description,
+                                    String ownerName, String ownerEmail) {
         this.applicationName = applicationName;
         this.applicationCode = applicationCode;
         this.description = description;
-        this.status = status;
         this.ownerName = ownerName;
         this.ownerEmail = ownerEmail;
     }
@@ -69,14 +65,6 @@ public class CreateApplicationRequest {
 
     public void setDescription(String description) {
         this.description = description;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
     }
 
     public String getOwnerName() {

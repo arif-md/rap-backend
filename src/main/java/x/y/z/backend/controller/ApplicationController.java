@@ -165,12 +165,13 @@ public class ApplicationController {
     }
 
     /**
-     * Get applications by status.
+     * Get applications by status (matched against RAP.GENERIC_REF_TBL_CODE via the
+     * application's latest WORKFLOW_APP_ASSOC).
      * GET /api/applications/status/{status}
      */
     @GetMapping("/status/{status}")
     public ResponseEntity<List<ApplicationResponse>> getApplicationsByStatus(@PathVariable String status) {
-        // Delegate to service (includes validation)
+        // Delegate to service
         List<Application> applications = applicationService.getApplicationsByStatus(status);
         
         // Convert list of domain models to list of DTOs

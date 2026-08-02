@@ -34,7 +34,9 @@ public class ApplicationService {
 
     /**
      * Create a new application.
-     * BUSINESS LOGIC: Validates unique code, sets defaults, validates status.
+     * BUSINESS LOGIC: Validates unique code.
+     * Status is not settable here - it's derived from the application's
+     * WORKFLOW_APP_ASSOC association once a process instance is started.
      */
     public Application createApplication(Application application) {
         // Business Rule 1: Check if application code already exists
@@ -44,15 +46,7 @@ public class ApplicationService {
             );
         }
 
-        // Business Rule 2: Set default status if not provided
-        if (application.getStatus() == null || application.getStatus().isEmpty()) {
-            application.setStatus("ACTIVE");
-        }
-
-        // Business Rule 3: Validate status values
-        validateStatus(application.getStatus());
-
-        // Business Rule 4: Validate required fields
+        // Business Rule 2: Validate required fields
         validateRequiredFields(application);
 
         // Delegate to handler for data access
@@ -61,7 +55,7 @@ public class ApplicationService {
 
     /**
      * Update an existing application.
-     * BUSINESS LOGIC: Validates existence, prevents code changes, validates status.
+     * BUSINESS LOGIC: Validates existence, prevents code changes.
      */
     public Application updateApplication(Application application) {
         // Business Rule 1: Check if application exists
@@ -73,15 +67,12 @@ public class ApplicationService {
         // Business Rule 2: Cannot change application code
         if (!existing.getApplicationCode().equals(application.getApplicationCode())) {
             throw new IllegalArgumentException(
-                "Cannot change application code from '" + existing.getApplicationCode() + 
+                "Cannot change application code from '" + existing.getApplicationCode() +
                 "' to '" + application.getApplicationCode() + "'"
             );
         }
 
-        // Business Rule 3: Validate status values
-        validateStatus(application.getStatus());
-
-        // Business Rule 4: Validate required fields
+        // Business Rule 3: Validate required fields
         validateRequiredFields(application);
 
         // Delegate to handler for data access
@@ -143,14 +134,10 @@ public class ApplicationService {
     }
 
     /**
-     * Get applications by status.
-     * BUSINESS LOGIC: Validates status value.
+     * Get applications whose latest workflow status code (RAP.GENERIC_REF_TBL_CODE) matches.
      */
     @Transactional(readOnly = true)
     public List<Application> getApplicationsByStatus(String status) {
-        // Business Rule: Validate status value
-        validateStatus(status);
-        
         return applicationHandler.findByStatus(status);
     }
 
@@ -253,7 +240,8 @@ public class ApplicationService {
     }
 
     /**
-     * Get applications for a specific university with pagination.
+     * Get applications for a specific university with pagination (internal "Applications" tab:
+     * everything not yet ACCEPTED - see getAcceptedApplicationsByUniversity for the "Permits" tab).
      * Used by internal users to view applications by university.
      */
     @Transactional(readOnly = true)
@@ -270,39 +258,28 @@ public class ApplicationService {
         return applicationHandler.findByUniversityPaginated(universityId, page, size);
     }
 
+    /**
+     * Get ACCEPTED applications for a specific university with pagination (internal "Permits" tab:
+     * an application becomes a permit once its latest workflow status is ACCEPTED, mirroring
+     * getAcceptedApplicationsByUser for the external "My Permits" tab).
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<Application> getAcceptedApplicationsByUniversity(Long universityId, int page, int size) {
+        if (page < 0) {
+            throw new IllegalArgumentException("Page number cannot be negative");
+        }
+        if (size <= 0 || size > 100) {
+            throw new IllegalArgumentException("Page size must be between 1 and 100");
+        }
+        if (universityId == null) {
+            throw new IllegalArgumentException("University ID is required");
+        }
+        return applicationHandler.findAcceptedByUniversityPaginated(universityId, page, size);
+    }
+
     // =========================================================================
     // BUSINESS LOGIC HELPER METHODS
     // =========================================================================
-
-    /**
-     * Validate status value against allowed values.
-     * This is a business rule that can evolve independently.
-     */
-    private void validateStatus(String status) {
-        if (status == null || status.isEmpty()) {
-            throw new IllegalArgumentException("Status cannot be null or empty");
-        }
-        
-        if (!isValidStatus(status)) {
-            throw new IllegalArgumentException(
-                "Invalid status: '" + status + "'. " +
-                "Valid values: ACTIVE, INACTIVE, PENDING, ARCHIVED"
-            );
-        }
-    }
-
-    /**
-     * Check if status is in the allowed list.
-     * This could be moved to a configuration file or database table.
-     */
-    private boolean isValidStatus(String status) {
-        return status != null && (
-            status.equals("ACTIVE") || 
-            status.equals("INACTIVE") || 
-            status.equals("PENDING") || 
-            status.equals("ARCHIVED")
-        );
-    }
 
     /**
      * Validate required fields.

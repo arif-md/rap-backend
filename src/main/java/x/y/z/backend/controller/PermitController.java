@@ -100,16 +100,31 @@ public class PermitController {
     }
 
     /**
-     * Get permits for a specific university with pagination.
+     * Get permits for a specific university with pagination (internal "Permits" tab).
+     * An application becomes a permit once its latest workflow status is ACCEPTED,
+     * so this is backed by RAP.APPLICATION rather than RAP.permit - mirrors getMyPermits above.
      * GET /api/permits/university/{universityId}?page=0&size=10
      */
     @GetMapping("/university/{universityId}")
     @PreAuthorize("hasRole('INTERNAL_USER')")
-    public ResponseEntity<PageResponse<Permit>> getPermitsByUniversity(
+    public ResponseEntity<PageResponse<ApplicationResponse>> getPermitsByUniversity(
             @PathVariable Long universityId,
             @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
             @RequestParam(name = "size", defaultValue = "10") @Min(1) int size) {
-        PageResponse<Permit> permitPage = permitService.getPermitsByUniversity(universityId, page, size);
-        return ResponseEntity.ok(permitPage);
+        PageResponse<Application> applicationPage =
+            applicationService.getAcceptedApplicationsByUniversity(universityId, page, size);
+
+        List<ApplicationResponse> content = applicationPage.getContent().stream()
+            .map(dtoMapper::toDto)
+            .collect(Collectors.toList());
+
+        PageResponse<ApplicationResponse> response = new PageResponse<>(
+            content,
+            applicationPage.getPage(),
+            applicationPage.getSize(),
+            applicationPage.getTotalElements()
+        );
+
+        return ResponseEntity.ok(response);
     }
 }

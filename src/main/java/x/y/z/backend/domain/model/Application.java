@@ -10,6 +10,7 @@ public class Application extends TaskForm {
     
     private String applicationName;
     private String description;
+    // Not a stored column - populated on read via WORKFLOW_APP_ASSOC.STATUS_CD joined to GENERIC_REF_TBL.
     private String status;
     private String ownerName;
     private String ownerEmail;
@@ -24,12 +25,11 @@ public class Application extends TaskForm {
     }
 
     // Constructor for creating new applications
-    public Application(String applicationName, String applicationCode, String description, 
-                      String status, String ownerName, String ownerEmail) {
+    public Application(String applicationName, String applicationCode, String description,
+                      String ownerName, String ownerEmail) {
         this.applicationName = applicationName;
         this.applicationCode = applicationCode;
         this.description = description;
-        this.status = status;
         this.ownerName = ownerName;
         this.ownerEmail = ownerEmail;
     }

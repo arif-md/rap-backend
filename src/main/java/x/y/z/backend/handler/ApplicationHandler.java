@@ -134,6 +134,16 @@ public class ApplicationHandler {
     }
 
     /**
+     * Find ACCEPTED applications by university with pagination (internal "Permits" tab).
+     */
+    public PageResponse<Application> findAcceptedByUniversityPaginated(Long universityId, int page, int size) {
+        int offset = page * size;
+        List<Application> applications = applicationMapper.findAcceptedByUniversityPaginated(universityId, offset, size);
+        long totalElements = applicationMapper.countAcceptedByUniversity(universityId);
+        return new PageResponse<>(applications, page, size, totalElements);
+    }
+
+    /**
      * Find ACCEPTED applications by user email with pagination ("My Permits" tab).
      */
     public PageResponse<Application> findAcceptedByUserPaginated(String userEmail, int page, int size) {

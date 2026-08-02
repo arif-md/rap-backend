@@ -21,7 +21,6 @@ public class ApplicationDtoMapper {
             request.getApplicationName(),
             request.getApplicationCode(),
             request.getDescription(),
-            request.getStatus(),
             request.getOwnerName(),
             request.getOwnerEmail()
         );
@@ -41,7 +40,6 @@ public class ApplicationDtoMapper {
             request.getApplicationName(),
             request.getApplicationCode(),
             request.getDescription(),
-            request.getStatus(),
             request.getOwnerName(),
             request.getOwnerEmail()
         );
