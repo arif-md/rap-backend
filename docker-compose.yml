@@ -13,7 +13,7 @@ services:
       - "4200:80"
     environment:
       - API_BASE_URL=${API_BASE_URL:-http://localhost:8080}
-      - PROCESS_SERVICE_URL=http://process-service:8090
+      - PROCESS_SERVICE_URL=http://process:8090
     networks:
       - app-network
     restart: unless-stopped
@@ -105,6 +105,12 @@ services:
       # process container are visible here for download. attachment.storage.provider defaults
       # to "local", so no override needed.
       - ATTACHMENT_LOCAL_DIR=/app/data/attachments
+
+      # KIE Server - env.kieServerURL defaults to localhost:8090, which only works when backend
+      # runs on the host (hot-reload). When backend runs as a container (this compose file),
+      # "localhost" would resolve to itself, not the process container - use the Docker network
+      # service name instead.
+      - KIE_SERVER_URL=http://process:8090/rest/server
     volumes:
       - ./data/attachments:/app/data/attachments
     depends_on:
