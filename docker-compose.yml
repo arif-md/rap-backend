@@ -241,6 +241,11 @@ services:
     depends_on:
       database:
         condition: service_healthy
+      # process container's @PostConstruct resolves JBPM_HT_ADMIN_USER against
+      # RAP.USER_INFO at startup - that table only exists once backend's Flyway
+      # migrations have run, so wait for backend to report healthy first.
+      backend:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
       interval: 30s
