@@ -11,7 +11,7 @@
     5. Uses established session to call protected API endpoints
     
 .PARAMETER Endpoint
-    The API endpoint to test (e.g., /api/workflow/tasks, /api/permits/my)
+    The API endpoint to test (e.g., /api/workflow/tasks, /api/applications/my/admissions)
 
 .PARAMETER Username
     Keycloak username (default: user@raptor.local)
@@ -36,8 +36,8 @@
     Test workflow tasks endpoint with pagination
 
 .EXAMPLE
-    .\test-authenticated-endpoint.ps1 -Endpoint "/api/permits/my" -QueryParams "page=0&size=10" -ShowDetails
-    Test permits endpoint with detailed output
+    .\test-authenticated-endpoint.ps1 -Endpoint "/api/applications/my/admissions" -QueryParams "page=0&size=10" -ShowDetails
+    Test admissions endpoint with detailed output
 
 .EXAMPLE
     .\test-authenticated-endpoint.ps1 -Endpoint "/api/applications/my" -Username "admin@raptor.local" -Password "AdminPass123"

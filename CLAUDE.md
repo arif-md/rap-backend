@@ -6,7 +6,8 @@
 
 ## Purpose
 Spring Boot REST API for the RAP application: owns user auth (dual OIDC/Azure AD → JWT),
-applications, permits, universities, and a local workflow "tasks" table. It does **not**
+applications (including "admissions" - applications whose latest workflow status is
+ACCEPTED), universities, and a local workflow "tasks" table. It does **not**
 own BPMN process definitions or human-task orchestration logic — that's `rap-processes`
 (jBPM, port 8090). Despite the name, `WorkflowController`/`ProcessService`/`ProcessHandler`
 still read/write a local `tasks` SQL table (migration `V6__Create_task_table.sql`) and are
@@ -38,9 +39,11 @@ Run from `backend/` (see parent CLAUDE.md for the full `dev.ps1`/`make` command 
   (auth endpoints self-handle authentication via the JWT cookie so Spring Security doesn't
   302-redirect XHR calls into a CORS failure — see `SecurityConfig`)
 - `/auth` — `login`, `sso-login`, `refresh`, `logout`, `user`, `check`
-- `/api/applications` — CRUD + `/code/{code}`, `/status/{status}`, `/search`, `/count`, `/my`, `/university/{id}`
+- `/api/applications` — CRUD + `/code/{code}`, `/status/{status}`, `/search`, `/count`, `/my`,
+  `/my/admissions`, `/university/{id}`, `/university/{id}/admissions` (the `/admissions`
+  variants are ACCEPTED-only, backing the dashboard's "Admissions" tabs - see
+  `ApplicationService.getAcceptedApplicationsBy*`)
 - `/api/applications/submissions` — public application intake (`ApplicationSubmissionHandler`)
-- `/api/permits` — `/my`, `/{id}`, `/number/{permitNumber}`, `/university/{universityId}`
 - `/api/workflow/tasks` — paginated tasks for current user, `/tasks/{id}` (see Purpose note above)
 - `/api/admin/**` — `@PreAuthorize("hasRole('ADMIN')")` at the class level; user/role management
 - `/api/universities`, `/api/config/environmentProperties` (frontend runtime config)
@@ -49,11 +52,20 @@ Run from `backend/` (see parent CLAUDE.md for the full `dev.ps1`/`make` command 
 ## Data model
 - Schema: `RAP` (see `docs/DATABASE-SCHEMA-STRATEGY.md` for why it's isolated from jBPM's `JBPM` schema)
 - Migrations: `src/main/resources/db/migration/` — `V1` initial schema, `V2` auth tables,
-  `V3` applications, `V4` permits, `V5` seed data, `V6` tasks. Add new ones as `V7__*.sql`.
+  `V3` applications, `V4` permits (dropped by `V11` - see below), `V5` seed data, `V6` tasks,
+  `V7` jBPM integration tables, `V8` ref-table seed data, `V9` application internal review
+  (reviewer signature + review date), `V10` attachments, `V11` drops `RAP.permit`. Add new
+  ones as `V12__*.sql`.
+- `V4__Create_permit_tables.sql` created a standalone `RAP.permit` table/CRUD stack that was
+  never wired to the frontend - the "My Permits"/"Permits" dashboard tabs were always backed
+  by `RAP.application` filtered to ACCEPTED status. That table and its `Permit`/`PermitService`/
+  `PermitHandler`/`PermitMapper` stack were removed (`V11`) when the "permit" concept was
+  renamed to "admission" throughout the app; don't reintroduce a separate permit entity for
+  the admissions tabs, they belong on `ApplicationService.getAcceptedApplicationsBy*`.
 - Mapper XML ↔ mapper interface pairs live in `src/main/resources/mapper/*.xml` and
-  `repository/mapper/*.java` — one pair per table (`ApplicationMapper`, `PermitMapper`,
-  `UniversityMapper`, `UserMapper`, `UserRoleMapper`, `RoleMapper`, `RefreshTokenMapper`,
-  `RevokedTokenMapper`, `ProcessMapper` (tasks)).
+  `repository/mapper/*.java` — one pair per table (`ApplicationMapper`, `UniversityMapper`,
+  `UserMapper`, `UserRoleMapper`, `RoleMapper`, `RefreshTokenMapper`, `RevokedTokenMapper`,
+  `ProcessMapper` (tasks)).
 - UUID primary keys go through a custom `UuidTypeHandler` (`config/UuidTypeHandler.java`).
 
 ## Dependencies & integrations
@@ -83,7 +95,7 @@ Run from `backend/` (see parent CLAUDE.md for the full `dev.ps1`/`make` command 
 - `domain/model` — MyBatis type-alias target (plain POJOs, no JPA annotations)
 - `domain/handler` vs `handler` — two handler packages exist; newer feature-specific
   handlers (e.g. `ApplicationSubmissionHandler`) live under `domain/handler`, while the
-  original CRUD handlers (`ApplicationHandler`, `PermitHandler`, `UserHandler`, etc.) live
+  original CRUD handlers (`ApplicationHandler`, `UserHandler`, etc.) live
   directly under `handler`. Follow whichever sibling pattern matches the feature you're touching.
 - `config/CurrentUser` + `config/UserArgumentResolver` — lets controllers take a
   `CurrentUser user` parameter directly (resolved from the Spring Security principal set by

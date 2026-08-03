@@ -23,8 +23,8 @@ import x.y.z.backend.service.AttachmentService;
 
 /**
  * REST Controller for listing and downloading an application's attachments (dashboard
- * "Attachments" action, shared by the Applications and Permits tabs - a permit is just an
- * application whose status is ACCEPTED, see ApplicationController).
+ * "Attachments" action, shared by the Applications and Admissions tabs - an admission is just
+ * an application whose status is ACCEPTED, see ApplicationController).
  */
 @RestController
 @RequestMapping("/api/applications")

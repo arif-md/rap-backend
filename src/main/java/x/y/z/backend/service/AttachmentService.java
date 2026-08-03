@@ -33,7 +33,7 @@ public class AttachmentService {
 
     /**
      * List attachments for an application (dashboard "Attachments" dialog, both the
-     * Applications and Permits tabs - a permit is just an application, see ApplicationService).
+     * Applications and Admissions tabs - an admission is just an application, see ApplicationService).
      * BUSINESS LOGIC: same trust model as getProcessStatusImage - the application's owner may
      * always view its attachments; internal/admin staff may view any application's attachments.
      */

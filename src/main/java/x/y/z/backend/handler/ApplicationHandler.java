@@ -134,7 +134,7 @@ public class ApplicationHandler {
     }
 
     /**
-     * Find ACCEPTED applications by university with pagination (internal "Permits" tab).
+     * Find ACCEPTED applications by university with pagination (internal "Admissions" tab).
      */
     public PageResponse<Application> findAcceptedByUniversityPaginated(Long universityId, int page, int size) {
         int offset = page * size;
@@ -144,7 +144,7 @@ public class ApplicationHandler {
     }
 
     /**
-     * Find ACCEPTED applications by user email with pagination ("My Permits" tab).
+     * Find ACCEPTED applications by user email with pagination ("My Admissions" tab).
      */
     public PageResponse<Application> findAcceptedByUserPaginated(String userEmail, int page, int size) {
         int offset = page * size;

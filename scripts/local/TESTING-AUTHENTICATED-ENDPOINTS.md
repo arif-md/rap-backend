@@ -17,9 +17,9 @@ pwsh -File scripts\local\test-authenticated-endpoint.ps1 -Endpoint "<endpoint-pa
 pwsh -File scripts\local\test-authenticated-endpoint.ps1 -Endpoint "/api/workflow/tasks" -QueryParams "page=0&size=10"
 ```
 
-### Test Permits
+### Test Admissions
 ```powershell
-pwsh -File scripts\local\test-authenticated-endpoint.ps1 -Endpoint "/api/permits/my" -QueryParams "page=0&size=10"
+pwsh -File scripts\local\test-authenticated-endpoint.ps1 -Endpoint "/api/applications/my/admissions" -QueryParams "page=0&size=10"
 ```
 
 ### Test Applications
@@ -104,7 +104,7 @@ Client (Script)          Backend                 Keycloak
 }
 ```
 
-### ✗ User Not Found: `/api/workflow/tasks` and `/api/permits/my`
+### ✗ User Not Found: `/api/workflow/tasks` and `/api/applications/my/admissions`
 ```json
 {
   "status": 404,
@@ -135,7 +135,7 @@ Client (Script)          Backend                 Keycloak
 
 ### Test Multiple Endpoints in Sequence
 ```powershell
-$endpoints = @("/api/workflow/tasks", "/api/permits/my", "/api/applications/my")
+$endpoints = @("/api/workflow/tasks", "/api/applications/my/admissions", "/api/applications/my")
 foreach ($endpoint in $endpoints) {
     Write-Host "`nTesting: $endpoint" -ForegroundColor Yellow
     pwsh -File scripts\local\test-authenticated-endpoint.ps1 -Endpoint $endpoint -QueryParams "page=0&size=10"

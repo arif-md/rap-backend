@@ -233,21 +233,26 @@ public class ApplicationController {
         
         // Delegate to service
         PageResponse<Application> applicationPage = applicationService.getApplicationsByUser(currentUser, page, size);
-        
-        // Convert domain models to DTOs
-        List<ApplicationResponse> content = applicationPage.getContent().stream()
-            .map(dtoMapper::toDto)
-            .collect(Collectors.toList());
-        
-        // Build PageResponse with DTO content
-        PageResponse<ApplicationResponse> response = new PageResponse<>(
-            content,
-            applicationPage.getPage(),
-            applicationPage.getSize(),
-            applicationPage.getTotalElements()
-        );
-        
-        return ResponseEntity.ok(response);
+
+        return ResponseEntity.ok(toResponsePage(applicationPage));
+    }
+
+    /**
+     * Get ACCEPTED applications ("admissions") for the current user with pagination -
+     * the external "My Admissions" dashboard tab.
+     * GET /api/applications/my/admissions?page=0&size=10
+     */
+    @GetMapping("/my/admissions")
+    @PreAuthorize("hasRole('EXTERNAL_USER')")
+    public ResponseEntity<PageResponse<ApplicationResponse>> getMyAdmissions(
+            @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
+            @RequestParam(name = "size", defaultValue = "10") @Min(1) int size,
+            CurrentUser user) {
+
+        PageResponse<Application> applicationPage =
+            applicationService.getAcceptedApplicationsByUser(user.getEmail(), page, size);
+
+        return ResponseEntity.ok(toResponsePage(applicationPage));
     }
 
     /**
@@ -285,16 +290,40 @@ public class ApplicationController {
             @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
             @RequestParam(name = "size", defaultValue = "10") @Min(1) int size) {
         PageResponse<Application> applicationPage = applicationService.getApplicationsByUniversity(universityId, page, size);
+        return ResponseEntity.ok(toResponsePage(applicationPage));
+    }
+
+    /**
+     * Get ACCEPTED applications ("admissions") for a specific university with pagination -
+     * the internal "Admissions" dashboard tab.
+     * GET /api/applications/university/{universityId}/admissions?page=0&size=10
+     */
+    @GetMapping("/university/{universityId}/admissions")
+    @PreAuthorize("hasRole('INTERNAL_USER')")
+    public ResponseEntity<PageResponse<ApplicationResponse>> getAdmissionsByUniversity(
+            @PathVariable Long universityId,
+            @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
+            @RequestParam(name = "size", defaultValue = "10") @Min(1) int size) {
+        PageResponse<Application> applicationPage =
+            applicationService.getAcceptedApplicationsByUniversity(universityId, page, size);
+        return ResponseEntity.ok(toResponsePage(applicationPage));
+    }
+
+    /**
+     * Converts a PageResponse<Application> to a PageResponse<ApplicationResponse>, applying
+     * the domain-to-DTO mapping to its content. Shared by every paginated endpoint above
+     * (my/university applications and admissions) to avoid repeating the same conversion.
+     */
+    private PageResponse<ApplicationResponse> toResponsePage(PageResponse<Application> applicationPage) {
         List<ApplicationResponse> content = applicationPage.getContent().stream()
             .map(dtoMapper::toDto)
             .collect(Collectors.toList());
-        PageResponse<ApplicationResponse> response = new PageResponse<>(
+        return new PageResponse<>(
             content,
             applicationPage.getPage(),
             applicationPage.getSize(),
             applicationPage.getTotalElements()
         );
-        return ResponseEntity.ok(response);
     }
 
     /**

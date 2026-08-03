@@ -230,7 +230,7 @@
           AND (sts.GENERIC_REF_TBL_CODE IS NULL OR sts.GENERIC_REF_TBL_CODE &lt;&gt; 'ACCEPTED')
     </select>
 
-    <!-- Find Applications by User with Pagination (My Permits tab: ACCEPTED only) -->
+    <!-- Find Applications by User with Pagination (My Admissions tab: ACCEPTED only) -->
     <select id="findAcceptedByUserPaginated" resultMap="ApplicationResultMap">
         SELECT
             a.id,
@@ -254,7 +254,7 @@
         FETCH NEXT #{limit} ROWS ONLY
     </select>
 
-    <!-- Count Applications by User (My Permits tab) -->
+    <!-- Count Applications by User (My Admissions tab) -->
     <select id="countAcceptedByUser" resultType="long">
         SELECT COUNT(*)
         <include refid="applicationStatusJoin"/>
@@ -294,7 +294,7 @@
           AND (sts.GENERIC_REF_TBL_CODE IS NULL OR sts.GENERIC_REF_TBL_CODE &lt;&gt; 'ACCEPTED')
     </select>
 
-    <!-- Find Applications by University with Pagination (Internal Permits tab: ACCEPTED only) -->
+    <!-- Find Applications by University with Pagination (Internal Admissions tab: ACCEPTED only) -->
     <select id="findAcceptedByUniversityPaginated" resultMap="ApplicationResultMap">
         SELECT
             a.id,
@@ -318,7 +318,7 @@
         FETCH NEXT #{limit} ROWS ONLY
     </select>
 
-    <!-- Count Applications by University (Internal Permits tab) -->
+    <!-- Count Applications by University (Internal Admissions tab) -->
     <select id="countAcceptedByUniversity" resultType="long">
         SELECT COUNT(*)
         <include refid="applicationStatusJoin"/>

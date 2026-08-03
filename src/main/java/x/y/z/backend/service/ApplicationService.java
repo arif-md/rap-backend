@@ -184,8 +184,8 @@ public class ApplicationService {
     }
 
     /**
-     * Get ACCEPTED applications for a specific user with pagination ("My Permits" tab:
-     * an application becomes a permit once its latest workflow status is ACCEPTED).
+     * Get ACCEPTED applications for a specific user with pagination ("My Admissions" tab:
+     * an application becomes an admission once its latest workflow status is ACCEPTED).
      * @param userEmail The user's email address
      * @param page The page number (0-indexed)
      * @param size The number of items per page
@@ -241,7 +241,7 @@ public class ApplicationService {
 
     /**
      * Get applications for a specific university with pagination (internal "Applications" tab:
-     * everything not yet ACCEPTED - see getAcceptedApplicationsByUniversity for the "Permits" tab).
+     * everything not yet ACCEPTED - see getAcceptedApplicationsByUniversity for the "Admissions" tab).
      * Used by internal users to view applications by university.
      */
     @Transactional(readOnly = true)
@@ -259,9 +259,9 @@ public class ApplicationService {
     }
 
     /**
-     * Get ACCEPTED applications for a specific university with pagination (internal "Permits" tab:
-     * an application becomes a permit once its latest workflow status is ACCEPTED, mirroring
-     * getAcceptedApplicationsByUser for the external "My Permits" tab).
+     * Get ACCEPTED applications for a specific university with pagination (internal "Admissions" tab:
+     * an application becomes an admission once its latest workflow status is ACCEPTED, mirroring
+     * getAcceptedApplicationsByUser for the external "My Admissions" tab).
      */
     @Transactional(readOnly = true)
     public PageResponse<Application> getAcceptedApplicationsByUniversity(Long universityId, int page, int size) {
