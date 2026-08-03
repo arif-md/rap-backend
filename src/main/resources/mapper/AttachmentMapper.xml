@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="x.y.z.backend.repository.mapper.AttachmentMapper">
+
+    <resultMap id="attachmentResultMap" type="x.y.z.backend.domain.model.Attachment">
+        <id property="id" column="id"/>
+        <result property="applicationId" column="application_id"/>
+        <result property="fileName" column="file_name"/>
+        <result property="contentType" column="content_type"/>
+        <result property="storageLocation" column="storage_location"/>
+        <result property="fileSizeBytes" column="file_size_bytes"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="createdBy" column="created_by"/>
+    </resultMap>
+
+    <select id="findByApplicationId" resultMap="attachmentResultMap">
+        SELECT id, application_id, file_name, content_type, storage_location, file_size_bytes, created_at, created_by
+        FROM RAP.ATTACHMENTS
+        WHERE application_id = #{applicationId}
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="findById" resultMap="attachmentResultMap">
+        SELECT id, application_id, file_name, content_type, storage_location, file_size_bytes, created_at, created_by
+        FROM RAP.ATTACHMENTS
+        WHERE id = #{id}
+    </select>
+
+</mapper>

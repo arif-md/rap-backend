@@ -149,6 +149,14 @@
 			<artifactId>spring-cloud-azure-starter-appconfiguration-config</artifactId>
 		</dependency>
 
+		<!-- Azure Blob Storage - attachment download in the Azure environment
+		     (attachment.storage.provider=azure). Version managed by the
+		     spring-cloud-azure-dependencies BOM imported below. -->
+		<dependency>
+			<groupId>com.azure</groupId>
+			<artifactId>azure-storage-blob</artifactId>
+		</dependency>
+
 		<!-- Spring Cloud Bootstrap — enables BootstrapConfiguration in spring.factories.
 		     Required for Spring Cloud Azure App Configuration 5.x on Spring Boot 3.x
 		     because the library uses the bootstrap mechanism (not spring.config.import). -->

@@ -100,6 +100,13 @@ services:
       
       # JVM Options
       - JAVA_OPTS=-Xmx512m -Xms256m
+
+      # Attachment Storage - shared bind-mounted volume (see below) so PDFs written by the
+      # process container are visible here for download. attachment.storage.provider defaults
+      # to "local", so no override needed.
+      - ATTACHMENT_LOCAL_DIR=/app/data/attachments
+    volumes:
+      - ./data/attachments:/app/data/attachments
     depends_on:
       database:
         condition: service_healthy
@@ -222,6 +229,11 @@ services:
       JBPM_HT_ADMIN_USER: wbadmin
       JBPM_HT_ADMIN_GROUP: task_admin#All
       JAVA_OPTS: "-Xmx1g -Xms512m -Dorg.kie.server.startup.strategy=LocalContainersStartupStrategy -Dorg.kie.server.persistence.schema=JBPM"
+      # Attachment Storage - same bind-mounted host folder as the backend service (below), so
+      # PDFs PDFWorkItemHandler writes here are visible to the backend's download endpoint.
+      ATTACHMENT_LOCAL_DIR: /app/data/attachments
+    volumes:
+      - ./data/attachments:/app/data/attachments
     ports:
       - "8090:8090"
     networks:
